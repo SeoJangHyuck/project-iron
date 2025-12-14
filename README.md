@@ -39,7 +39,7 @@
 
 ## 기획 문서
 
-상세한 게임 기획은 [game-design-document.md](game-design-document.md) 참조:
+상세한 게임 기획은 [GDD.md](GDD.md) (Game Design Document) 참조:
 - 스토리 & 5개 챕터 구성
 - 파츠/스킬 상세 스펙
 - 적 유닛 & 보스 설정
