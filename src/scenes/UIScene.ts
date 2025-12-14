@@ -30,6 +30,11 @@ export class UIScene extends Phaser.Scene {
   private currentResources: Resources = { minerals: 0, energy: 0 };
   private workerCounts: WorkerCounts = { mineralWorkers: 0, energyWorkers: 0 };
 
+  // 자동생산 토글
+  private autoProduceEnabled: boolean = false;
+  private autoProduceButton!: Phaser.GameObjects.Rectangle;
+  private autoProduceText!: Phaser.GameObjects.Text;
+
   constructor() {
     super({ key: 'UIScene' });
   }
@@ -213,13 +218,68 @@ export class UIScene extends Phaser.Scene {
       gameScene.events.emit('produceUnit');
     });
 
-    // 자동 생산 토글 (미구현 표시)
-    const autoText = this.add.text(600, panelY, '[자동생산: 미구현]', {
-      fontSize: '12px',
-      color: '#666666',
+    // 자동생산 토글 버튼
+    this.createAutoProduceButton(600, panelY);
+  }
+
+  /**
+   * 자동생산 토글 버튼 생성
+   */
+  private createAutoProduceButton(x: number, y: number): void {
+    const buttonWidth = 100;
+    const buttonHeight = 45;
+
+    this.autoProduceButton = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x2d3436);
+    this.autoProduceButton.setStrokeStyle(2, 0x666666);
+    this.autoProduceButton.setDepth(1001);
+    this.autoProduceButton.setInteractive({ useHandCursor: true });
+
+    this.autoProduceText = this.add.text(x, y, '자동생산\nOFF', {
+      fontSize: '11px',
+      color: '#888888',
+      align: 'center',
     });
-    autoText.setOrigin(0, 0.5);
-    autoText.setDepth(1001);
+    this.autoProduceText.setOrigin(0.5);
+    this.autoProduceText.setDepth(1002);
+
+    this.autoProduceButton.on('pointerover', () => {
+      if (!this.autoProduceEnabled) {
+        this.autoProduceButton.setFillStyle(0x4a5568);
+      }
+    });
+
+    this.autoProduceButton.on('pointerout', () => {
+      if (!this.autoProduceEnabled) {
+        this.autoProduceButton.setFillStyle(0x2d3436);
+      }
+    });
+
+    this.autoProduceButton.on('pointerdown', () => {
+      this.toggleAutoProduce();
+    });
+  }
+
+  /**
+   * 자동생산 토글
+   */
+  private toggleAutoProduce(): void {
+    this.autoProduceEnabled = !this.autoProduceEnabled;
+
+    if (this.autoProduceEnabled) {
+      this.autoProduceButton.setFillStyle(0x2d5a3d);
+      this.autoProduceButton.setStrokeStyle(2, 0x44ff44);
+      this.autoProduceText.setText('자동생산\nON');
+      this.autoProduceText.setColor('#44ff44');
+    } else {
+      this.autoProduceButton.setFillStyle(0x2d3436);
+      this.autoProduceButton.setStrokeStyle(2, 0x666666);
+      this.autoProduceText.setText('자동생산\nOFF');
+      this.autoProduceText.setColor('#888888');
+    }
+
+    // GameScene에 자동생산 상태 전달
+    const gameScene = this.scene.get('GameScene');
+    gameScene.events.emit('autoProduceToggle', this.autoProduceEnabled);
   }
 
   /**

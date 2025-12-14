@@ -19,6 +19,9 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   // HP 바
   private hpBar: Phaser.GameObjects.Graphics;
 
+  // 전투 상태
+  private inCombat: boolean = false;
+
   constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
     super(scene, x, y, texture);
 
@@ -59,6 +62,20 @@ export class Enemy extends Phaser.GameObjects.Sprite {
    */
   getAttack(): number {
     return this.attack;
+  }
+
+  /**
+   * 전투 상태 설정
+   */
+  setInCombat(value: boolean): void {
+    this.inCombat = value;
+  }
+
+  /**
+   * 전투 중인지 확인
+   */
+  isInCombat(): boolean {
+    return this.inCombat;
   }
 
   /**

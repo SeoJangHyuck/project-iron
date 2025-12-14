@@ -85,6 +85,28 @@ export class BootScene extends Phaser.Scene {
     tileGraphics.strokePath();
     tileGraphics.generateTexture('tile', 32, 16);
     tileGraphics.destroy();
+
+    // 광산 건물 (황금색)
+    const mineGraphics = this.make.graphics({ x: 0, y: 0 });
+    mineGraphics.fillStyle(0xffd700);
+    mineGraphics.fillRect(4, 4, 24, 24);
+    mineGraphics.fillStyle(0xb8860b);
+    mineGraphics.fillRect(8, 8, 16, 16);
+    mineGraphics.lineStyle(2, 0x8b6914);
+    mineGraphics.strokeRect(4, 4, 24, 24);
+    mineGraphics.generateTexture('building_mine', 32, 32);
+    mineGraphics.destroy();
+
+    // 발전기 건물 (청록색)
+    const generatorGraphics = this.make.graphics({ x: 0, y: 0 });
+    generatorGraphics.fillStyle(0x00ffff);
+    generatorGraphics.fillRect(4, 4, 24, 24);
+    generatorGraphics.fillStyle(0x008b8b);
+    generatorGraphics.fillRect(8, 8, 16, 16);
+    generatorGraphics.lineStyle(2, 0x006666);
+    generatorGraphics.strokeRect(4, 4, 24, 24);
+    generatorGraphics.generateTexture('building_generator', 32, 32);
+    generatorGraphics.destroy();
   }
 
   create(): void {

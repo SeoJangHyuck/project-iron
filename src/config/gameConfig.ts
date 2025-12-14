@@ -3,8 +3,8 @@
  */
 export const GAME_CONFIG = {
   // 화면 크기
-  WIDTH: 960,
-  HEIGHT: 540,
+  WIDTH: 1280,
+  HEIGHT: 720,
 
   // 아이소메트릭 타일 크기
   TILE_WIDTH: 32,
@@ -12,7 +12,7 @@ export const GAME_CONFIG = {
 
   // 그리드 크기
   GRID_WIDTH: 15,
-  GRID_HEIGHT: 10,
+  GRID_HEIGHT: 18, // 전투 공간 확대 (10 → 18)
 
   // 유닛 크기
   UNIT_SIZE: 32,
@@ -53,8 +53,16 @@ export const UNIT_CONFIG = {
  * 기지 설정
  */
 export const BASE_CONFIG = {
+  // 아군 기지
   MAX_HP: 100,
   DAMAGE_PER_ENEMY: 10,
+  
+  // 적 기지
+  ENEMY_MAX_HP: 200,
+  DAMAGE_PER_ALLY: 15, // 아군 유닛 1마리당 적 기지에 주는 데미지
+  
+  // 승리 조건
+  VICTORY_WAVE: 10, // 이 웨이브 클리어 시 승리
 };
 
 /**

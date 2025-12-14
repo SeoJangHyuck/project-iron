@@ -26,6 +26,9 @@ export class Unit extends Phaser.GameObjects.Sprite {
   private attackCooldown: number = 0;
   private readonly ATTACK_COOLDOWN_MS: number = 500;
 
+  // 전투 상태
+  private inCombat: boolean = false;
+
   constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
     super(scene, x, y, texture);
 
@@ -76,7 +79,30 @@ export class Unit extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * 앞으로 이동
+   * 전투 상태 설정
+   */
+  setInCombat(value: boolean): void {
+    this.inCombat = value;
+  }
+
+  /**
+   * 전투 중인지 확인
+   */
+  isInCombat(): boolean {
+    return this.inCombat;
+  }
+
+  /**
+   * 프레임 업데이트 (쿨다운 감소 등)
+   */
+  updateCooldown(delta: number): void {
+    if (this.attackCooldown > 0) {
+      this.attackCooldown -= delta;
+    }
+  }
+
+  /**
+   * 앞으로 이동 (전투 중이 아닐 때만 호출)
    */
   moveForward(delta: number, grid: IsometricGrid, offsetX: number, offsetY: number): void {
     const deltaSeconds = delta / 1000;
@@ -95,11 +121,6 @@ export class Unit extends Phaser.GameObjects.Sprite {
 
     // HP 바 위치 업데이트
     this.updateHpBar();
-    
-    // 쿨다운 감소
-    if (this.attackCooldown > 0) {
-      this.attackCooldown -= delta;
-    }
   }
 
   /**
