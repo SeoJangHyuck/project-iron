@@ -163,6 +163,22 @@
 
 ---
 
+## 개발 환경 & 코드 품질
+
+### 코드 관리 도구
+- [ ] ESLint 설정 (TypeScript 린팅)
+- [ ] Prettier 설정 (코드 포맷팅)
+- [ ] Husky + lint-staged (커밋 전 자동 검사)
+- [ ] EditorConfig 설정
+
+### 다국어 지원 (i18n)
+- [ ] 한국어/영어 언어 스위칭 기능
+- [ ] 언어 데이터 파일 분리 (`src/locales/ko.json`, `src/locales/en.json`)
+- [ ] UI 텍스트 다국어 적용
+- [ ] 언어 설정 저장 (LocalStorage)
+
+---
+
 ## 기술 부채
 
 - [ ] Unit/Enemy 공통 로직 BaseUnit으로 추출
