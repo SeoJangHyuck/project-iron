@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG, COLORS, RESOURCE_CONFIG } from '../config/gameConfig';
+import type { MechBuild } from '../systems/MechBuilder';
 
 interface Resources {
   minerals: number;
@@ -9,6 +10,11 @@ interface Resources {
 interface WorkerCounts {
   mineralWorkers: number;
   energyWorkers: number;
+}
+
+interface UnitBuildData {
+  build: MechBuild;
+  name: string;
 }
 
 /**
@@ -35,11 +41,20 @@ export class UIScene extends Phaser.Scene {
   private autoProduceButton!: Phaser.GameObjects.Rectangle;
   private autoProduceText!: Phaser.GameObjects.Text;
 
+  // 유닛 빌드 데이터
+  private unitBuilds: UnitBuildData[] = [];
+  private unitButtons: Phaser.GameObjects.Container[] = [];
+  private _selectedSlotIndex = 0;
+
   constructor() {
     super({ key: 'UIScene' });
   }
 
   create(): void {
+    // 유닛 빌드 데이터 가져오기
+    const registryBuilds = this.registry.get('unitBuilds') as UnitBuildData[] | undefined;
+    this.unitBuilds = registryBuilds ?? [];
+
     // 상단 리소스 바
     this.createResourceBar();
 
@@ -128,7 +143,6 @@ export class UIScene extends Phaser.Scene {
   private createBaseHpBar(): void {
     const barY = 55;
     const barWidth = 200;
-    const barHeight = 16;
     const barX = GAME_CONFIG.WIDTH / 2 - barWidth / 2;
 
     // 라벨
@@ -198,28 +212,114 @@ export class UIScene extends Phaser.Scene {
     bg.setDepth(1000);
 
     // 일꾼 생산 버튼들
-    this.createButton(100, panelY, '광산 일꾼\n(100 광물)', () => {
+    this.createButton(70, panelY, '광산 일꾼\n(100 광물)', () => {
       const gameScene = this.scene.get('GameScene');
       gameScene.events.emit('produceWorker', 'mineral');
-    });
+    }, 90);
 
-    this.createButton(230, panelY, '발전기 일꾼\n(100 광물)', () => {
+    this.createButton(170, panelY, '발전기 일꾼\n(100 광물)', () => {
       const gameScene = this.scene.get('GameScene');
       gameScene.events.emit('produceWorker', 'energy');
-    });
+    }, 90);
 
     // 구분선
-    const divider = this.add.rectangle(340, panelY, 2, 60, 0x444444);
+    const divider = this.add.rectangle(230, panelY, 2, 60, 0x444444);
     divider.setDepth(1001);
 
-    // 유닛 생산 버튼
-    this.createButton(450, panelY, '전투 유닛\n(150 광물)', () => {
-      const gameScene = this.scene.get('GameScene');
-      gameScene.events.emit('produceUnit');
-    });
+    // 유닛 슬롯 버튼들 (동적 비용 표시)
+    this.createUnitSlotButtons(panelY);
 
     // 자동생산 토글 버튼
-    this.createAutoProduceButton(600, panelY);
+    this.createAutoProduceButton(GAME_CONFIG.WIDTH - 70, panelY);
+  }
+
+  /**
+   * 유닛 슬롯 버튼들 생성
+   */
+  private createUnitSlotButtons(panelY: number): void {
+    this.unitButtons = [];
+    const startX = 280;
+    const buttonWidth = 85;
+    const gap = 5;
+
+    // 최대 6개 슬롯 표시
+    const maxSlots = Math.min(this.unitBuilds.length, 6);
+
+    for (let i = 0; i < maxSlots; i++) {
+      const unitData = this.unitBuilds[i];
+      const x = startX + i * (buttonWidth + gap);
+
+      const container = this.add.container(x, panelY);
+      container.setDepth(1001);
+
+      // 배경
+      const bgRect = this.add.rectangle(0, 0, buttonWidth, 55, 0x2d3436);
+      bgRect.setStrokeStyle(2, i === 0 ? 0x44ff44 : COLORS.UI_ACCENT);
+      bgRect.setInteractive({ useHandCursor: true });
+      bgRect.setName('bg');
+
+      // 유닛 이름 (짧게)
+      const shortName = unitData.name.length > 6 ? unitData.name.substring(0, 6) + '..' : unitData.name;
+      const nameText = this.add.text(0, -12, shortName, {
+        fontSize: '11px',
+        color: '#ffffff',
+      });
+      nameText.setOrigin(0.5);
+
+      // 비용
+      const costText = this.add.text(0, 8, `${unitData.build.stats.cost}광물`, {
+        fontSize: '10px',
+        color: '#ffd700',
+      });
+      costText.setOrigin(0.5);
+      costText.setName('costText');
+
+      container.add([bgRect, nameText, costText]);
+      this.unitButtons.push(container);
+
+      // 클릭 이벤트
+      const slotIndex = i;
+      bgRect.on('pointerdown', () => {
+        this.selectUnitSlot(slotIndex);
+        const gameScene = this.scene.get('GameScene');
+        gameScene.events.emit('produceUnit', slotIndex);
+      });
+
+      bgRect.on('pointerover', () => {
+        bgRect.setFillStyle(0x4a5568);
+      });
+
+      bgRect.on('pointerout', () => {
+        bgRect.setFillStyle(0x2d3436);
+      });
+    }
+
+    // 빈 슬롯이 없으면 기본 버튼 생성
+    if (maxSlots === 0) {
+      this.createButton(350, panelY, '전투 유닛\n(150 광물)', () => {
+        const gameScene = this.scene.get('GameScene');
+        gameScene.events.emit('produceUnit');
+      }, 100);
+    }
+  }
+
+  /**
+   * 유닛 슬롯 선택
+   */
+  private selectUnitSlot(index: number): void {
+    this._selectedSlotIndex = index;
+
+    // 버튼 스타일 업데이트
+    this.unitButtons.forEach((container, i) => {
+      const bgRect = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+      if (bgRect) {
+        bgRect.setStrokeStyle(2, i === this._selectedSlotIndex ? 0x44ff44 : COLORS.UI_ACCENT);
+      }
+    });
+
+    // GameScene에 선택된 슬롯 전달
+    const gameScene = this.scene.get('GameScene');
+    gameScene.events.emit('selectUnitSlot', this._selectedSlotIndex);
   }
 
   /**
@@ -285,8 +385,8 @@ export class UIScene extends Phaser.Scene {
   /**
    * 버튼 생성
    */
-  private createButton(x: number, y: number, text: string, callback: () => void): void {
-    const buttonWidth = 110;
+  private createButton(x: number, y: number, text: string, callback: () => void, width = 110): void {
+    const buttonWidth = width;
     const buttonHeight = 55;
 
     const bg = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x2d3436);
@@ -317,17 +417,17 @@ export class UIScene extends Phaser.Scene {
    * 자원 업데이트 처리
    */
   private onResourceUpdate(resources: Resources): void {
-    this.currentResources = resources;
-    this.mineralText.setText(`광물: ${Math.floor(resources.minerals)}`);
-    this.energyText.setText(`에너지: ${Math.floor(resources.energy)}`);
+    this.currentResources = { ...resources };
+    this.mineralText.setText(`광물: ${Math.floor(this.currentResources.minerals)}`);
+    this.energyText.setText(`에너지: ${Math.floor(this.currentResources.energy)}`);
   }
 
   /**
    * 일꾼 업데이트 처리
    */
   private onWorkerUpdate(counts: WorkerCounts): void {
-    this.workerCounts = counts;
-    this.workerText.setText(`일꾼: 광산 ${counts.mineralWorkers} | 발전기 ${counts.energyWorkers}`);
+    this.workerCounts = { ...counts };
+    this.workerText.setText(`일꾼: 광산 ${this.workerCounts.mineralWorkers} | 발전기 ${this.workerCounts.energyWorkers}`);
   }
 
   /**

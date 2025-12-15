@@ -2,8 +2,10 @@ import Phaser from 'phaser';
 import { GAME_CONFIG, COLORS, RESOURCE_CONFIG, ENEMY_CONFIG, BASE_CONFIG } from '../config/gameConfig';
 import { IsometricGrid } from '../systems/IsometricGrid';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { Unit } from '../entities/Unit';
 import { Enemy } from '../entities/Enemy';
+import { MechUnit } from '../entities/MechUnit';
+import { buildMech, DEFAULT_MECH_CONFIG } from '../systems/MechBuilder';
+import type { MechBuild } from '../systems/MechBuilder';
 
 /**
  * 게임 씬 - 메인 게임플레이
@@ -58,6 +60,10 @@ export class GameScene extends Phaser.Scene {
   private autoProduceCooldown: number = 0;
   private readonly AUTO_PRODUCE_INTERVAL: number = 500; // 0.5초마다 체크
 
+  // 유닛 빌드 목록 (편성 화면에서 전달받음)
+  private unitBuilds: { build: MechBuild; name: string }[] = [];
+  private currentSlotIndex = 0;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -75,6 +81,19 @@ export class GameScene extends Phaser.Scene {
 
     // 시스템 초기화
     this.initializeSystems();
+
+    // 편성 화면에서 유닛 빌드 받아오기
+    const registryBuilds = this.registry.get('unitBuilds') as { build: MechBuild; name: string }[] | undefined;
+    if (registryBuilds && registryBuilds.length > 0) {
+      this.unitBuilds = registryBuilds;
+    } else {
+      // 기본 빌드 사용
+      const defaultBuild = buildMech(DEFAULT_MECH_CONFIG);
+      if (defaultBuild) {
+        this.unitBuilds = [{ build: defaultBuild, name: '기본 유닛' }];
+      }
+    }
+    this.currentSlotIndex = 0;
 
     // 그리드 생성
     this.createGrid();
@@ -389,6 +408,14 @@ export class GameScene extends Phaser.Scene {
     this.events.on('produceUnit', this.onProduceUnit, this);
     this.events.on('produceWorker', this.onProduceWorker, this);
     this.events.on('autoProduceToggle', this.onAutoProduceToggle, this);
+    this.events.on('selectUnitSlot', this.onSelectUnitSlot, this);
+  }
+
+  /**
+   * 유닛 슬롯 선택 처리
+   */
+  private onSelectUnitSlot(index: number): void {
+    this.currentSlotIndex = index;
   }
 
   /**
@@ -399,13 +426,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * 유닛 생산 처리
+   * 유닛 생산 처리 (슬롯 인덱스 지정 가능)
    */
-  private onProduceUnit(): void {
-    const cost = 150; // 기본 유닛 비용
+  private onProduceUnit(slotIndex?: number): void {
+    const index = slotIndex ?? this.currentSlotIndex;
+    const unitData = this.unitBuilds[index];
+    if (!unitData) return;
+
+    const cost = unitData.build.stats.cost;
 
     if (this.resourceSystem.spendMinerals(cost)) {
-      this.spawnAllyUnit();
+      this.spawnAllyUnit(index);
       this.events.emit('resourceUpdate', this.resourceSystem.getResources());
     }
   }
@@ -431,21 +462,37 @@ export class GameScene extends Phaser.Scene {
   /**
    * 아군 유닛 스폰
    */
-  private spawnAllyUnit(): void {
+  private spawnAllyUnit(slotIndex?: number): void {
+    const index = slotIndex ?? this.currentSlotIndex;
+    const unitData = this.unitBuilds[index];
+
+    if (!unitData) {
+      console.error('유닛 빌드를 찾을 수 없음:', index);
+      return;
+    }
+
     const offsetX = GAME_CONFIG.WIDTH / 2;
     const offsetY = 80;
 
     const startPos = this.grid.cartesianToIsometric(this.allyBasePos.x, this.allyBasePos.y - 1);
-    const unit = new Unit(
+    const unit = new MechUnit(
       this,
       offsetX + startPos.x,
       offsetY + startPos.y - 16,
-      'unit_ally'
+      'unit_ally',
+      unitData.build
     );
     unit.setGridPosition(this.allyBasePos.x, this.allyBasePos.y - 1);
-    unit.setDirection(-1); // 위로 이동
+    unit.setDirection(-1); // 위로 이동 (적 기지 방향)
 
     this.allyUnits.add(unit);
+  }
+
+  /**
+   * 유닛 빌드 목록 반환 (UI용)
+   */
+  getUnitBuilds(): { build: MechBuild; name: string }[] {
+    return this.unitBuilds;
   }
 
   /**
@@ -513,7 +560,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyUnits.add(enemy);
   }
 
-  update(time: number, delta: number): void {
+  update(_time: number, delta: number): void {
     if (this.isGameOver || this.isVictory) return;
 
     // 자원 업데이트
@@ -540,17 +587,21 @@ export class GameScene extends Phaser.Scene {
    * 자동생산 업데이트
    */
   private updateAutoProduce(delta: number): void {
-    if (!this.autoProduceEnabled) return;
+    if (!this.autoProduceEnabled || this.unitBuilds.length === 0) return;
 
     this.autoProduceCooldown -= delta;
 
     if (this.autoProduceCooldown <= 0) {
       this.autoProduceCooldown = this.AUTO_PRODUCE_INTERVAL;
 
-      const unitCost = 150;
+      // 현재 슬롯의 유닛 생산
+      const unitData = this.unitBuilds[this.currentSlotIndex];
+      if (!unitData) return;
+
+      const unitCost = unitData.build.stats.cost;
       if (this.resourceSystem.canAffordMinerals(unitCost)) {
         this.resourceSystem.spendMinerals(unitCost);
-        this.spawnAllyUnit();
+        this.spawnAllyUnit(this.currentSlotIndex);
         this.events.emit('resourceUpdate', this.resourceSystem.getResources());
       }
     }
@@ -560,11 +611,9 @@ export class GameScene extends Phaser.Scene {
    * 전투 상태 업데이트 - 사거리 내 적/아군이 있으면 전투 상태로 설정
    */
   private updateCombatState(): void {
-    const combatRange = 60; // 전투 사거리 (픽셀)
-
     // 모든 유닛의 전투 상태를 먼저 초기화
     this.allyUnits.getChildren().forEach((obj) => {
-      (obj as Unit).setInCombat(false);
+      (obj as MechUnit).setInCombat(false);
     });
     this.enemyUnits.getChildren().forEach((obj) => {
       (obj as Enemy).setInCombat(false);
@@ -572,15 +621,18 @@ export class GameScene extends Phaser.Scene {
 
     // 아군 유닛과 적 유닛 간 거리 체크
     this.allyUnits.getChildren().forEach((allyObj) => {
-      const ally = allyObj as Unit;
+      const ally = allyObj as MechUnit;
       if (!ally.active) return;
+
+      // 각 유닛의 사거리 사용
+      const allyRange = ally.getRange();
 
       this.enemyUnits.getChildren().forEach((enemyObj) => {
         const enemy = enemyObj as Enemy;
         if (!enemy.active) return;
 
         const distance = Phaser.Math.Distance.Between(ally.x, ally.y, enemy.x, enemy.y);
-        if (distance < combatRange) {
+        if (distance < allyRange) {
           ally.setInCombat(true);
           enemy.setInCombat(true);
         }
@@ -597,7 +649,7 @@ export class GameScene extends Phaser.Scene {
 
     // 아군 유닛 업데이트
     this.allyUnits.getChildren().forEach((obj) => {
-      const unit = obj as Unit;
+      const unit = obj as MechUnit;
       if (unit.active) {
         // 쿨다운 감소는 항상 수행
         unit.updateCooldown(delta);
@@ -648,32 +700,51 @@ export class GameScene extends Phaser.Scene {
    * 전투 수행 - 전투 중인 유닛들이 서로 공격
    */
   private performCombat(): void {
-    const combatRange = 60;
+    const allies = this.allyUnits.getChildren() as MechUnit[];
+    const enemies = this.enemyUnits.getChildren() as Enemy[];
 
-    this.allyUnits.getChildren().forEach((allyObj) => {
-      const ally = allyObj as Unit;
-      if (!ally.active || !ally.isInCombat() || !ally.canAttack()) return;
+    for (const ally of allies) {
+      if (!ally.active || !ally.isInCombat() || !ally.canAttack()) continue;
 
+      // 수리 유닛은 전투하지 않음 (추후 힐 로직 추가 가능)
+      if (ally.canHeal()) continue;
+
+      const allyRange = ally.getRange();
       let closestEnemy: Enemy | null = null;
       let closestDistance = Infinity;
 
       // 가장 가까운 적 찾기
-      this.enemyUnits.getChildren().forEach((enemyObj) => {
-        const enemy = enemyObj as Enemy;
-        if (!enemy.active) return;
+      for (const enemy of enemies) {
+        if (!enemy.active) continue;
 
         const distance = Phaser.Math.Distance.Between(ally.x, ally.y, enemy.x, enemy.y);
-        if (distance < closestDistance && distance < combatRange) {
+        if (distance < closestDistance && distance < allyRange) {
           closestDistance = distance;
           closestEnemy = enemy;
         }
-      });
+      }
 
       // 전투 수행
       if (closestEnemy) {
         ally.performAttack();
+        
+        // 범위 공격인 경우 주변 적에게도 데미지
+        if (ally.hasAoe()) {
+          const aoeRange = 40;
+          for (const enemy of enemies) {
+            if (!enemy.active) continue;
+            const dist = Phaser.Math.Distance.Between(closestEnemy.x, closestEnemy.y, enemy.x, enemy.y);
+            if (dist < aoeRange) {
+              enemy.takeDamage(ally.getAttack() * 0.5); // 범위 데미지는 50%
+            }
+          }
+        }
+
         closestEnemy.takeDamage(ally.getAttack());
-        ally.takeDamage(closestEnemy.getAttack() * 0.3);
+        
+        // 적의 반격 (비행 유닛은 지상 적에게 덜 맞음)
+        const counterDamage = ally.canFly() ? closestEnemy.getAttack() * 0.15 : closestEnemy.getAttack() * 0.3;
+        ally.takeDamage(counterDamage);
 
         if (closestEnemy.isDead()) {
           closestEnemy.destroy();
@@ -685,7 +756,7 @@ export class GameScene extends Phaser.Scene {
           ally.destroy();
         }
       }
-    });
+    }
   }
 
   /**

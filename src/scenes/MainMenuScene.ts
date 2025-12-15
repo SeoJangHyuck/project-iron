@@ -33,14 +33,19 @@ export class MainMenuScene extends Phaser.Scene {
     });
     subtitle.setOrigin(0.5);
 
-    // 시작 버튼
+    // 게임 시작 버튼 (바로 게임으로)
     this.createButton(centerX, centerY + 40, '게임 시작', () => {
       this.scene.start('GameScene');
       this.scene.start('UIScene');
     });
 
+    // 유닛 편성 버튼 (편성 화면으로 이동)
+    this.createButton(centerX, centerY + 100, '유닛 편성', () => {
+      this.scene.start('UnitSetupScene');
+    });
+
     // 설정 버튼 (비활성)
-    this.createButton(centerX, centerY + 100, '설정', () => {
+    this.createButton(centerX, centerY + 160, '설정', () => {
       console.log('설정 - 아직 구현되지 않음');
     }, true);
 
