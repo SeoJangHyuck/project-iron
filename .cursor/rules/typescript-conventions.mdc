@@ -1,0 +1,498 @@
+---
+description: TypeScript code conventions
+globs: src/**/*
+alwaysApply: false
+---
+
+# TypeScript Code Conventions
+
+## Purpose
+
+Standardize code style and structure to maintain consistency, reduce potential risks, and create maintainable code. When multiple options have no performance difference, choose one to avoid meaningless arguments in code reviews.
+
+## tsconfig Common Options
+
+- Enable `strict: true` for strict type checking
+- Use `noImplicitOverride: true` for explicit overrides
+- Align `moduleResolution` with build tool (Vite/Nuxt: "bundler")
+
+- **Naming Conventions**
+
+  - **Variables, Functions, Properties**: Use camelCase
+  - **Classes, Types, Interfaces**: Use PascalCase
+  - **Constants, Enum Members**: Use UPPER_CASE
+  - **Files**: Use camelCase
+  - **Boolean Variables**: Use prefixes like `is`, `has`, `should`
+  - **ESLint Rules**: `@typescript-eslint/naming-convention`
+
+  ```typescript
+  // ✅ DO: Proper naming conventions
+  import { no_camelcased as camelCased } from "external-module";
+  const MAIN_COLOR = "#112C85";
+  const isValidForm = true;
+  const hasPermission = false;
+
+  function calculateTotalAmount() {}
+  class ValidClassName {}
+  interface UserProfile {}
+
+  enum UserRole {
+    ADMIN,
+    MODERATOR,
+    USER,
+  }
+
+  // ❌ DON'T: Incorrect naming
+  const valid = true; // Should be isValid
+  const loading = false; // Should be isLoading
+  const Main_Color = "#112C85"; // Should be MAIN_COLOR
+  ```
+
+- **Type Safety Best Practices**
+
+  - Use `unknown` instead of `any` with proper type narrowing
+  - Use nullish coalescing operator (`??`) over logical OR for null checks
+  - Use `as Type` instead of `<Type>` for type assertions
+  - Avoid non-null assertions (`!`) - use proper null checks instead
+  - Don't explicitly type variables initialized with primitives
+  - **ESLint Rules**: `@typescript-eslint/no-explicit-any`, `@typescript-eslint/prefer-nullish-coalescing`, `@typescript-eslint/consistent-type-assertions`, `@typescript-eslint/no-non-null-assertion`, `@typescript-eslint/no-inferrable-types`
+
+  ```typescript
+  // ✅ DO: Proper type safety
+  function processValue(value: unknown) {
+    if (typeof value === "string") {
+      console.log(value.toUpperCase());
+    }
+  }
+
+  const config = userConfig ?? defaultConfig;
+  const foo = bar as Foo;
+  const includesBaz = foo.bar && foo.bar.includes("baz");
+
+  // Type inference works fine
+  const count = 5;
+  const userName = "John";
+  const isActive = true;
+
+  // ❌ DON'T: Type safety violations
+  function processAny(value: any) {} // Use unknown
+  const config = userConfig || defaultConfig; // Use ??
+  const foo = <Foo>bar; // Use as Type
+  const includesBaz = foo.bar!.includes("baz"); // Use null check
+  const count: number = 5; // Unnecessary annotation
+
+  // ❌ DON'T: Unsafe optional chaining
+  const { bar } = obj?.foo; // Use obj?.foo || baz
+  (obj?.foo)(); // Use obj?.foo?.()
+  ```
+
+- **Type Definitions and Utility Types**
+
+  - Use built-in utility types actively: `Partial<T>`, `Required<T>`, `Pick<T, K>`, `Omit<T, K>`, `Readonly<T>`, `Record<K, T>`
+  - Use `readonly` for immutable data
+  - Use primitive types instead of wrapper objects
+  - Avoid redundant type constituents in unions/intersections
+  - **ESLint Rules**: `@typescript-eslint/prefer-readonly`, `@typescript-eslint/ban-types`, `@typescript-eslint/no-redundant-type-constituents`
+
+  ```typescript
+  // ✅ DO: Use built-in utility types actively
+  type PartialUser = Partial<User>;
+  type UserWithoutEmail = Omit<User, "email">;
+  type UserKeys = keyof User;
+  type UserName = Pick<User, "firstName" | "lastName">;
+
+  // ✅ DO: Use readonly for immutable data
+  class User {
+    readonly id: number;
+    constructor(id: number) {
+      this.id = id;
+    }
+  }
+
+  // ✅ DO: Use primitive types, not wrapper objects
+  const str: string = "foo";
+  const func: () => number = () => 1;
+
+  // ❌ DON'T: Wrapper object types
+  const str: String = "foo";
+  const func: Function = () => 1;
+  ```
+
+- **Type vs Interface Guidelines**
+
+  - **Default**: Use `type` for object shapes (better IDE support and consistency)
+  - **Use `interface`** when declaration merging is needed, multiple extensions with performance considerations, or implementing inheritance patterns
+
+  ```typescript
+  // ✅ DO: Use type for most object shapes
+  type User = {
+    id: number;
+    name: string;
+    email: string;
+  };
+
+  type UserWithPermissions = User & {
+    permissions: string[];
+  };
+
+  // ✅ DO: Use interface for declaration merging
+  interface Window {
+    customProperty: string;
+  }
+
+  // ✅ DO: Use interface for extensible APIs
+  interface EventTarget {
+    addEventListener(type: string, listener: EventListener): void;
+  }
+  ```
+
+- **Constants and Enums**
+
+  - Use `as const` for value-only constant collections
+  - Use `enum` when you need both values and types
+  - Avoid `const enum` and duplicate enum values
+  - **ESLint Rules**: `@typescript-eslint/no-duplicate-enum-values`
+
+  ```typescript
+  // ✅ DO: Use as const for value-only constants
+  const DELIVERY_OPTIONS = [
+    "Standard Shipping",
+    "Express Shipping",
+    "Next Day Shipping",
+  ] as const;
+
+  // ✅ DO: Use enum when you need both values and types
+  enum UserRole {
+    ADMIN = "admin",
+    USER = "user",
+    MODERATOR = "moderator",
+  }
+
+  // ✅ DO: Avoid duplicate enum values
+  enum Status {
+    PENDING = "pending",
+    APPROVED = "approved",
+    // ACTIVE = 'approved', // ❌ DON'T: Duplicate value
+  }
+
+  // ❌ DON'T: Use const enum (compilation issues)
+  const enum Direction {
+    UP,
+    DOWN,
+  } // Avoid const enum
+  ```
+
+- **Variable Management**
+
+  - Use `const` for variables that don't change
+  - Use template strings for string concatenation
+  - Avoid magic numbers - use named constants
+  - **ESLint Rules**: `prefer-const`, `prefer-template`, `@typescript-eslint/no-magic-numbers`
+
+  ```typescript
+  // ✅ DO: Prefer const and template strings
+  const message = `Hello, ${userName}!`;
+  const TAX_RATE = 0.25;
+  const finalPrice = basePrice + basePrice * TAX_RATE;
+
+  // ❌ DON'T: Use var, concatenation, or magic numbers
+  var oldVar = "bad"; // Use const/let
+  const finalPrice = basePrice + basePrice * 0.25; // Use named constant
+  ```
+
+- **Function and Class Patterns**
+
+  - Keep overloaded members together
+  - Order class members: fields, constructor, methods
+  - Use parameter properties for constructor assignments
+  - Use `override` keyword when overriding methods (TypeScript 4.3+)
+  - **MUST use arrow functions over function expressions**
+  - Remove `async` from functions without `await`
+  - **NEVER use `#private` fields** (use `private` instead for testing/inheritance flexibility)
+  - **ESLint Rules**: `@typescript-eslint/adjacent-overload-signatures`, `@typescript-eslint/member-ordering`, `@typescript-eslint/explicit-member-accessibility`, `prefer-arrow-callback`, `@typescript-eslint/require-await`
+
+  ```typescript
+  // ✅ DO: Proper class structure with parameter properties
+  class UserService {
+    constructor(
+      private readonly apiClient: ApiClient,
+      private readonly logger: Logger
+    ) {}
+
+    override processData() {
+      // Use override keyword when overriding
+    }
+
+    private validateUser(user: User): boolean {
+      // Private methods for internal logic
+    }
+  }
+
+  // ✅ DO: Arrow functions for callbacks
+  const processItems = (items: Item[]) => {
+    return items.map((item) => transformItem(item));
+  };
+
+  // ✅ DO: Proper async/await usage
+  async function fetchUserData(): Promise<User> {
+    try {
+      const response = await api.getUser();
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to fetch user: ${error.message}`);
+    }
+  }
+
+  // ✅ DO: Function parameter defaults
+  function processOptions({ timeout = 5000, retries = 3 }: Options = {}) {
+    // Implementation
+  }
+
+  // ❌ DON'T: Empty constructors or unnecessary patterns
+  class BadExample {
+    private service: Service;
+    constructor(service: Service) {
+      // Use parameter property
+      this.service = service;
+    }
+
+    async unnecessaryAsync() {
+      // Remove async if no await
+      return "hello";
+    }
+
+    #privateField = "bad"; // Use private instead
+  }
+  ```
+
+- **Object and Array Patterns**
+
+  - Use object shorthand method notation
+  - Filter for-in loops or use Object.keys/entries
+  - Use spread operator instead of `apply`
+  - Avoid `Array` constructor except for specific cases
+  - Avoid unnecessary computed keys and boolean casts
+  - **ESLint Rules**: `object-shorthand`, `guard-for-in`, `prefer-spread`, `@typescript-eslint/no-array-constructor`, `no-useless-computed-key`, `no-extra-boolean-cast`
+
+  ```typescript
+  // ✅ DO: Use object shorthand and proper iteration
+  const userService = {
+    fetchUser(id: number) {
+      return api.getUser(id);
+    },
+
+    updateUser(user: User) {
+      return api.updateUser(user);
+    },
+  };
+
+  // Safe object iteration
+  for (const key of Object.keys(userObject)) {
+    console.log(userObject[key]);
+  }
+
+  // Proper array construction
+  const numbers: number[] = [1, 2, 3];
+  const dynamicArray = Array.from({ length: 5 }, (_, i) => i);
+
+  // ❌ DON'T: Unsafe patterns
+  const badService = {
+    fetchUser: function(id: number) { ... }, // Use shorthand
+  };
+
+  for (const key in userObject) {            // Use Object.keys
+    // key could come from prototype
+  }
+
+  const badArray = Array(1, 2, 3);          // Use array literal
+  const unnecessaryKey = { ['key']: value }; // Just use { key: value }
+  ```
+
+- **Switch Statements and Equality**
+
+  - Wrap declarations in case blocks with braces
+  - Prevent fallthrough in switch statements
+  - Use strict equality (`===`, `!==`)
+  - Allow `==` only for null checks (includes undefined)
+  - Use explicit comparison operators for enums
+  - **ESLint Rules**: `no-case-declarations`, `no-fallthrough`, `eqeqeq`
+
+  ```typescript
+  // ✅ DO: Proper switch and equality patterns
+  switch (userType) {
+    case UserType.ADMIN: {
+      const adminUser = user as AdminUser;
+      return adminUser.permissions;
+    }
+    case UserType.REGULAR:
+      return defaultPermissions;
+    default:
+      throw new Error(`Unknown user type: ${userType}`);
+  }
+
+  // ✅ DO: Strict equality and enum comparisons
+  if (status === 'active') { ... }
+  if (value == null) { ... }          // Only exception for null/undefined check
+  let enabled = level !== SupportLevel.NONE;
+
+  // ❌ DON'T: Loose equality and boolean casts
+  if (status == 'active') { ... }     // Use ===
+  let enabled = Boolean(level);       // Use explicit comparison
+  if (!!value) { ... }                // Use explicit boolean check
+  ```
+
+- **Module System and Imports**
+
+  - Use type-only import/export syntax
+  - Place all imports at the top of files
+  - One import statement per module
+  - Don't rename to the same name
+  - Use absolute paths with aliases
+  - Don't use custom TypeScript modules/namespaces
+  - Export only constant references
+  - **ESLint Rules**: `@typescript-eslint/consistent-type-imports`, `import/first`, `no-duplicate-imports`, `no-useless-rename`, `@typescript-eslint/no-namespace`, `import/no-mutable-exports`
+
+  ```typescript
+  // ✅ DO: Proper import organization and type-only imports
+  import type { User, UserPermissions } from '~/types/user';
+  import { validateUser, formatUserName } from '~/utils/userHelpers';
+  import { ApiClient } from '~/services/apiClient';
+
+  // Use namespace imports for many renames
+  import * as TableView from './TableView';
+
+  // Export individual functions, not container classes
+  export const CONFIG_TIMEOUT = 5000;
+  export function processUser(user: User): ProcessedUser {
+    return { ...user, processed: true };
+  }
+
+  // ❌ DON'T: Container classes or mixed imports
+  export class Container {           // Export individual functions instead
+    static CONFIG = 5000;
+    static process() { ... }
+  }
+
+  import { User, validateUser } from '~/types'; // Separate type imports
+
+  // ❌ DON'T: Namespace usage and require statements
+  namespace MyNamespace { ... }               // Use modules instead
+  const lib = require('library');             // Use import statement
+  export { mutableValue };                    // Export only constants
+  ```
+
+- **Error Handling**
+
+  - Always use `new` keyword when creating Error instances
+  - Only throw Error or Error subclasses
+  - Don't use meaningless empty exports
+  - **ESLint Rules**: `@typescript-eslint/no-useless-empty-export`
+
+  ```typescript
+  // ✅ DO: Proper error construction and handling
+  class ValidationError extends Error {
+    constructor(message: string, public readonly field: string) {
+      super(message);
+      this.name = "ValidationError";
+    }
+  }
+
+  function validateInput(input: unknown): string {
+    if (typeof input !== "string") {
+      throw new ValidationError("Input must be a string", "input");
+    }
+    return input;
+  }
+
+  // ❌ DON'T: Throw non-Error objects
+  throw "String error"; // Use Error objects
+  throw { message: "Object error" }; // Use Error objects
+  throw Error("Missing new"); // Use new keyword
+  ```
+
+- **Advanced TypeScript Patterns**
+
+  - Don't declare empty interfaces
+  - Avoid incorrect constructor definitions
+  - Don't use meaningless exports
+  - Implement getters as pure functions
+  - Don't create pass-through accessors (make properties public instead)
+  - **ESLint Rules**: `@typescript-eslint/no-empty-interface`, `@typescript-eslint/no-misused-new`
+
+  ```typescript
+  // ✅ DO: Proper TypeScript patterns
+  interface UserConfig {
+    timeout: number;
+    retries: number;
+  }
+
+  class ApiService {
+    private _cache = new Map();
+
+    get cacheSize(): number {
+      return this._cache.size; // Pure function getter
+    }
+
+    // Don't create unnecessary getters/setters for public data
+    public readonly config: UserConfig;
+  }
+
+  // ❌ DON'T: Empty interfaces and pass-through accessors
+  interface EmptyInterface {} // Extend existing types instead
+
+  class BadService {
+    private _value: string;
+
+    get value(): string {
+      // Make value public instead
+      return this._value;
+    }
+
+    set value(val: string) {
+      this._value = val;
+    }
+  }
+  ```
+
+- **Comments and Documentation**
+
+  - Only comment business logic that cannot be understood from code alone
+  - Explain "why" not "what"
+  - Avoid section comments (e.g., // Composables, // Methods, // State)
+  - Avoid obvious comments that describe what code does
+
+  ```typescript
+  // ✅ DO: Business reasoning
+  // 결제 취소는 24시간 이내만 가능 (배송 준비 전)
+  if (dayjs().diff(order.createdAt, "hour") > 24) {
+    throw new Error("Cancellation period expired");
+  }
+
+  // 이진 탐색으로 10,000개 이상 데이터 성능 최적화
+  const index = binarySearch(sortedData, targetValue);
+
+  // ❌ DON'T: Obvious or redundant comments
+  // Composables
+  const { formatLocalDate } = useDateTime();
+
+  // Call API
+  const data = await fetchUser(userId);
+
+  // Initialize state
+  const state = reactive({ items: [] });
+  ```
+
+- **AI Agent Tasks for TypeScript Development**
+  - Check naming conventions compliance (camelCase, PascalCase, UPPER_CASE)
+  - Remove section comments (// Composables, // Methods) from code
+  - Validate that comments explain business logic, not describe code
+  - Validate type safety practices (avoid `any`, use `unknown`)
+  - Ensure proper use of TypeScript features (readonly, utility types)
+  - Recommend better naming for boolean variables with proper prefixes
+  - Identify magic numbers and suggest named constants
+  - Replace `any` types with proper types or `unknown` with type narrowing
+  - Suggest parameter properties for constructor assignments
+  - Organize imports (separate type-only vs regular imports)
+  - Suggest readonly properties where data should be immutable
+
+**Reference**: Follow TypeScript best practices and leverage the type system for maximum safety and developer experience. Reference [shared/types/](mdc:shared/types/) for existing type definitions.
