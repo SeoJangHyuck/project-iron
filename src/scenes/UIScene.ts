@@ -250,13 +250,13 @@ export class UIScene extends Phaser.Scene {
     this.productionBars.clear();
     this.productionTexts.clear();
 
-    const startX = 280;
-    const buttonWidth = 85;
+    const startX = 260;
+    const buttonWidth = 72;
     const buttonHeight = 55;
-    const gap = 5;
+    const gap = 4;
 
-    // 최대 6개 슬롯 표시
-    const maxSlots = Math.min(this.unitBuilds.length, 6);
+    // 최대 8개 슬롯 표시
+    const maxSlots = Math.min(this.unitBuilds.length, 8);
 
     for (let i = 0; i < maxSlots; i++) {
       const unitData = this.unitBuilds[i];
@@ -521,8 +521,8 @@ export class UIScene extends Phaser.Scene {
     if (progressBar) {
       progressBar.clear();
 
-      const barWidth = 75;
-      const barHeight = 6;
+      const barWidth = 62;
+      const barHeight = 5;
       const barX = -barWidth / 2;
       const barY = 18;
 

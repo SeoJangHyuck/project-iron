@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG, COLORS } from '../config/gameConfig';
+import { buildMech } from '../systems/MechBuilder';
+import type { MechConfig, MechBuild } from '../systems/MechBuilder';
 
 /**
  * 메인 메뉴 씬
@@ -33,8 +35,10 @@ export class MainMenuScene extends Phaser.Scene {
     });
     subtitle.setOrigin(0.5);
 
-    // 게임 시작 버튼 (바로 게임으로)
+    // 게임 시작 버튼 (기본 유닛으로 바로 게임)
     this.createButton(centerX, centerY + 40, '게임 시작', () => {
+      // 기본 유닛 빌드 설정
+      this.setupDefaultUnitBuilds();
       this.scene.start('GameScene');
       this.scene.start('UIScene');
     });
@@ -78,6 +82,34 @@ export class MainMenuScene extends Phaser.Scene {
     for (let y = 0; y < GAME_CONFIG.HEIGHT; y += 50) {
       graphics.lineBetween(0, y, GAME_CONFIG.WIDTH, y);
     }
+  }
+
+  /**
+   * 기본 유닛 빌드 설정
+   */
+  private setupDefaultUnitBuilds(): void {
+    const presets: { config: MechConfig; name: string }[] = [
+      { config: { legsId: 'scout', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '정찰기' },
+      { config: { legsId: 'walker', bodyId: 'standardFrame', armsId: 'laser' }, name: '레이저워커' },
+      { config: { legsId: 'fortress', bodyId: 'heavyArmor', armsId: 'cannon' }, name: '중전차' },
+      { config: { legsId: 'swift', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '스피더' },
+      { config: { legsId: 'hawk', bodyId: 'standardFrame', armsId: 'laser' }, name: '호크아이' },
+      { config: { legsId: 'valkyrie', bodyId: 'heavyArmor', armsId: 'missile' }, name: '발키리' },
+      { config: { legsId: 'walker', bodyId: 'shieldFrame', armsId: 'shotgun' }, name: '가디언' },
+      { config: { legsId: 'walker', bodyId: 'lightFrame', armsId: 'repairArm' }, name: '메딕' },
+    ];
+
+    const unitBuilds = presets
+      .map((preset) => {
+        const build = buildMech(preset.config);
+        if (build) {
+          return { build, name: preset.name };
+        }
+        return null;
+      })
+      .filter((item): item is { build: MechBuild; name: string } => item !== null);
+
+    this.registry.set('unitBuilds', unitBuilds);
   }
 
   /**

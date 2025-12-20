@@ -4,406 +4,441 @@ import {
   LEG_PARTS,
   BODY_PARTS,
   ARM_PARTS,
-  SpeedGrade,
   MovementType,
-  WeaponType,
 } from '../data/parts';
 import type { LegPart, BodyPart, ArmPart } from '../data/parts';
-import { buildMech, validateMechConfig, DEFAULT_MECH_CONFIG } from '../systems/MechBuilder';
+import {
+  buildMech,
+  validateMechConfig,
+  checkPartCompatibility,
+  getCurrentConstraints,
+  PartTabType,
+} from '../systems/MechBuilder';
 import type { MechConfig, MechBuild } from '../systems/MechBuilder';
 
-// 유닛 슬롯 데이터
 type UnitSlot = {
   config: MechConfig;
   customName: string | null;
   build: MechBuild | null;
 };
 
+// 레이아웃 상수 (카드 덱빌더 스타일)
+const LAYOUT = {
+  // 상단 유닛 덱 영역
+  DECK_Y: 70,
+  DECK_HEIGHT: 90,
+
+  // 하단 2분할
+  CONTENT_Y: 170,
+
+  // 좌측 파츠 카드 영역
+  CARDS_AREA_X: 20,
+  CARDS_AREA_WIDTH: 820,
+
+  // 우측 프리뷰 영역
+  PREVIEW_AREA_X: 860,
+  PREVIEW_AREA_WIDTH: 400,
+
+  // 카드 크기
+  UNIT_CARD_WIDTH: 140,
+  UNIT_CARD_HEIGHT: 70,
+  PART_CARD_WIDTH: 125,
+  PART_CARD_HEIGHT: 80,
+};
+
 /**
- * 유닛 편성 씬
+ * 유닛 편성 씬 (카드 덱빌더 스타일)
  */
 export class UnitSetupScene extends Phaser.Scene {
-  // 현재 선택된 슬롯 인덱스
   private selectedSlotIndex = 0;
-
-  // 6개 유닛 슬롯
   private unitSlots: UnitSlot[] = [];
 
-  // 현재 편집 중인 파츠 선택
   private currentLegsId = 'walker';
   private currentBodyId = 'standardFrame';
   private currentArmsId = 'machinegun';
 
-  // 현재 탭 (0: 다리, 1: 몸통, 2: 팔)
-  private currentTab = 0;
-
   // UI 요소들
-  private slotButtons: Phaser.GameObjects.Container[] = [];
-  private partButtons: Phaser.GameObjects.Container[] = [];
-  private tabButtons: Phaser.GameObjects.Container[] = [];
+  private slotCards: Phaser.GameObjects.Container[] = [];
+  private legsCards: Phaser.GameObjects.Container[] = [];
+  private bodyCards: Phaser.GameObjects.Container[] = [];
+  private armsCards: Phaser.GameObjects.Container[] = [];
+
   private statsText!: Phaser.GameObjects.Text;
   private errorText!: Phaser.GameObjects.Text;
   private unitNameText!: Phaser.GameObjects.Text;
   private previewGraphics!: Phaser.GameObjects.Graphics;
+  private constraintInfoText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'UnitSetupScene' });
   }
 
   create(): void {
-    // 슬롯 초기화 (6개, 기본 조합으로)
     this.initializeSlots();
-
-    // 배경 생성
     this.createBackground();
-
-    // 헤더 (타이틀 + 버튼)
     this.createHeader();
 
-    // 슬롯 패널 (좌측)
-    this.createSlotPanel();
+    // 카드 덱빌더 레이아웃
+    this.createUnitDeck();       // 상단 유닛 카드 덱
+    this.createPartsCards();     // 좌측 파츠 카드 영역
+    this.createPreviewPanel();   // 우측 프리뷰 영역
 
-    // 파츠 선택 패널 (우측 상단)
-    this.createPartsPanel();
-
-    // 미리보기 패널 (하단)
-    this.createPreviewPanel();
-
-    // 초기 UI 업데이트
     this.updateUI();
   }
 
-  /**
-   * 슬롯 초기화
-   */
   private initializeSlots(): void {
-    this.unitSlots = [];
-    for (let i = 0; i < 6; i++) {
-      const config = { ...DEFAULT_MECH_CONFIG };
-      const build = buildMech(config);
-      this.unitSlots.push({
-        config,
-        customName: null,
-        build,
-      });
-    }
+    // 다양한 기본 조합 프리셋
+    const presets: { config: MechConfig; name: string }[] = [
+      // 1. 경량 정찰기 - 빠른 이동, 저렴
+      { config: { legsId: 'scout', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '정찰기' },
+      // 2. 표준 레이저 - 밸런스 + 관통
+      { config: { legsId: 'walker', bodyId: 'standardFrame', armsId: 'laser' }, name: '레이저워커' },
+      // 3. 중장 캐논 - 탱커 + 고화력
+      { config: { legsId: 'fortress', bodyId: 'heavyArmor', armsId: 'cannon' }, name: '중전차' },
+      // 4. 경량 비행기 - 빠른 비행
+      { config: { legsId: 'swift', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '스피더' },
+      // 5. 비행 레이저 - 비행 + 관통
+      { config: { legsId: 'hawk', bodyId: 'standardFrame', armsId: 'laser' }, name: '호크아이' },
+      // 6. 중장 비행 미사일 - 범위공격
+      { config: { legsId: 'valkyrie', bodyId: 'heavyArmor', armsId: 'missile' }, name: '발키리' },
+      // 7. 쉴드 샷건 - 근접 방어형
+      { config: { legsId: 'walker', bodyId: 'shieldFrame', armsId: 'shotgun' }, name: '가디언' },
+      // 8. 수리 유닛 - 지원
+      { config: { legsId: 'walker', bodyId: 'lightFrame', armsId: 'repairArm' }, name: '메딕' },
+    ];
+
+    this.unitSlots = presets.map((preset) => ({
+      config: preset.config,
+      customName: preset.name,
+      build: buildMech(preset.config),
+    }));
   }
 
-  /**
-   * 배경 생성
-   */
   private createBackground(): void {
     const graphics = this.add.graphics();
 
-    // 어두운 배경
-    graphics.fillStyle(0x0d0d1a, 1);
+    // 어두운 그라데이션 배경
+    graphics.fillStyle(0x0a0a14, 1);
     graphics.fillRect(0, 0, GAME_CONFIG.WIDTH, GAME_CONFIG.HEIGHT);
 
-    // 장식용 그리드
-    graphics.lineStyle(1, 0x1a1a2e, 0.5);
-    for (let x = 0; x < GAME_CONFIG.WIDTH; x += 40) {
+    // 미세한 패턴
+    graphics.lineStyle(1, 0x151525, 0.3);
+    for (let x = 0; x < GAME_CONFIG.WIDTH; x += 30) {
       graphics.lineBetween(x, 0, x, GAME_CONFIG.HEIGHT);
     }
-    for (let y = 0; y < GAME_CONFIG.HEIGHT; y += 40) {
+    for (let y = 0; y < GAME_CONFIG.HEIGHT; y += 30) {
       graphics.lineBetween(0, y, GAME_CONFIG.WIDTH, y);
     }
   }
 
-  /**
-   * 헤더 생성
-   */
   private createHeader(): void {
-    // 배경
-    const headerBg = this.add.rectangle(GAME_CONFIG.WIDTH / 2, 30, GAME_CONFIG.WIDTH, 60, 0x16213e);
+    const headerBg = this.add.rectangle(GAME_CONFIG.WIDTH / 2, 30, GAME_CONFIG.WIDTH, 60, 0x12121f);
     headerBg.setDepth(10);
 
-    // 타이틀
-    const title = this.add.text(GAME_CONFIG.WIDTH / 2, 30, '유닛 편성', {
-      fontSize: '28px',
-      color: '#ffffff',
+    const title = this.add.text(GAME_CONFIG.WIDTH / 2, 30, '⚙ 유닛 편성', {
+      fontSize: '26px',
+      color: '#88ccff',
       fontStyle: 'bold',
     });
     title.setOrigin(0.5);
     title.setDepth(11);
 
-    // 뒤로 버튼
-    this.createButton(80, 30, '< 뒤로', () => {
+    this.createButton(80, 30, '◀ 뒤로', () => {
       this.scene.start('MainMenuScene');
     }, 100, 35);
 
-    // 출격 버튼
-    this.createButton(GAME_CONFIG.WIDTH - 80, 30, '출격 >', () => {
+    this.createButton(GAME_CONFIG.WIDTH - 80, 30, '출격 ▶', () => {
       this.startGame();
-    }, 100, 35, COLORS.UI_ACCENT);
+    }, 100, 35, 0x2266aa);
   }
 
   /**
-   * 슬롯 패널 생성 (좌측)
+   * 상단 유닛 카드 덱
    */
-  private createSlotPanel(): void {
-    const panelX = 20;
-    const panelY = 80;
-    const panelWidth = 200;
-    const panelHeight = 350;
+  private createUnitDeck(): void {
+    const { DECK_Y, DECK_HEIGHT, UNIT_CARD_WIDTH } = LAYOUT;
 
-    // 패널 배경
-    const bg = this.add.rectangle(panelX + panelWidth / 2, panelY + panelHeight / 2, panelWidth, panelHeight, 0x1a1a2e, 0.9);
-    bg.setStrokeStyle(2, 0x3d3d5c);
+    // 덱 배경
+    const deckBg = this.add.rectangle(
+      GAME_CONFIG.WIDTH / 2,
+      DECK_Y + DECK_HEIGHT / 2,
+      GAME_CONFIG.WIDTH - 40,
+      DECK_HEIGHT,
+      0x16162a,
+      0.95
+    );
+    deckBg.setStrokeStyle(2, 0x2a2a4a);
 
-    // 패널 타이틀
-    this.add.text(panelX + panelWidth / 2, panelY + 15, '유닛 슬롯', {
-      fontSize: '16px',
-      color: '#aaaaaa',
-    }).setOrigin(0.5);
+    // 덱 라벨
+    this.add.text(30, DECK_Y + 8, '유닛 덱', {
+      fontSize: '12px',
+      color: '#6688aa',
+    });
 
-    // 슬롯 버튼들 (2x3 그리드)
-    this.slotButtons = [];
-    for (let i = 0; i < 6; i++) {
-      const row = Math.floor(i / 2);
-      const col = i % 2;
-      const x = panelX + 55 + col * 95;
-      const y = panelY + 70 + row * 90;
+    // 8개 유닛 카드
+    this.slotCards = [];
+    const startX = 40;
+    const gap = 10;
 
-      const container = this.createSlotButton(x, y, i);
-      this.slotButtons.push(container);
+    for (let i = 0; i < 8; i++) {
+      const x = startX + i * (UNIT_CARD_WIDTH + gap) + UNIT_CARD_WIDTH / 2;
+      const y = DECK_Y + DECK_HEIGHT / 2 + 8;
+      const card = this.createUnitCard(x, y, i);
+      this.slotCards.push(card);
     }
   }
 
   /**
-   * 슬롯 버튼 생성
+   * 유닛 카드 생성
    */
-  private createSlotButton(x: number, y: number, index: number): Phaser.GameObjects.Container {
+  private createUnitCard(x: number, y: number, index: number): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
+    const { UNIT_CARD_WIDTH, UNIT_CARD_HEIGHT } = LAYOUT;
 
-    // 배경
-    const bg = this.add.rectangle(0, 0, 85, 80, 0x2d2d4a);
-    bg.setStrokeStyle(2, 0x4a4a6a);
+    // 카드 배경 (둥근 모서리 효과를 위한 그래픽)
+    const bg = this.add.rectangle(0, 0, UNIT_CARD_WIDTH, UNIT_CARD_HEIGHT, 0x1e1e3a);
+    bg.setStrokeStyle(2, 0x3a3a5a);
     bg.setInteractive({ useHandCursor: true });
 
-    // 슬롯 번호
-    const numText = this.add.text(0, -25, `${index + 1}`, {
-      fontSize: '14px',
-      color: '#888888',
+    // 슬롯 번호 뱃지
+    const badge = this.add.rectangle(-UNIT_CARD_WIDTH/2 + 15, -UNIT_CARD_HEIGHT/2 + 12, 22, 18, 0x4466aa);
+    const numText = this.add.text(-UNIT_CARD_WIDTH/2 + 15, -UNIT_CARD_HEIGHT/2 + 12, `${index + 1}`, {
+      fontSize: '11px',
+      color: '#ffffff',
+      fontStyle: 'bold',
     });
     numText.setOrigin(0.5);
 
-    // 유닛 이름 (짧게)
-    const nameText = this.add.text(0, 5, '', {
+    // 유닛 이름
+    const nameText = this.add.text(5, -8, '', {
       fontSize: '11px',
       color: '#ffffff',
-      align: 'center',
-      wordWrap: { width: 80 },
     });
     nameText.setOrigin(0.5);
     nameText.setName('nameText');
 
-    // 비용 표시
-    const costText = this.add.text(0, 28, '', {
+    // 비용
+    const costText = this.add.text(5, 12, '', {
       fontSize: '10px',
-      color: '#ffd700',
+      color: '#ffcc44',
     });
     costText.setOrigin(0.5);
     costText.setName('costText');
 
-    container.add([bg, numText, nameText, costText]);
+    container.add([bg, badge, numText, nameText, costText]);
 
-    // 클릭 이벤트
     bg.on('pointerdown', () => {
       this.selectSlot(index);
     });
 
     bg.on('pointerover', () => {
       if (this.selectedSlotIndex !== index) {
-        bg.setFillStyle(0x3d3d5c);
+        bg.setFillStyle(0x2a2a4a);
+        container.setScale(1.02);
       }
     });
 
     bg.on('pointerout', () => {
       if (this.selectedSlotIndex !== index) {
-        bg.setFillStyle(0x2d2d4a);
+        bg.setFillStyle(0x1e1e3a);
       }
+      container.setScale(1);
     });
 
     return container;
   }
 
   /**
-   * 파츠 선택 패널 생성 (우측 상단)
+   * 좌측 파츠 카드 영역
    */
-  private createPartsPanel(): void {
-    const panelX = 240;
-    const panelY = 80;
-    const panelWidth = GAME_CONFIG.WIDTH - 260;
-    const panelHeight = 280;
+  private createPartsCards(): void {
+    const { CARDS_AREA_X, CARDS_AREA_WIDTH, CONTENT_Y } = LAYOUT;
+    const areaHeight = GAME_CONFIG.HEIGHT - CONTENT_Y - 20;
 
-    // 패널 배경
-    const bg = this.add.rectangle(panelX + panelWidth / 2, panelY + panelHeight / 2, panelWidth, panelHeight, 0x1a1a2e, 0.9);
-    bg.setStrokeStyle(2, 0x3d3d5c);
+    // 파츠 영역 배경
+    const cardsBg = this.add.rectangle(
+      CARDS_AREA_X + CARDS_AREA_WIDTH / 2,
+      CONTENT_Y + areaHeight / 2,
+      CARDS_AREA_WIDTH,
+      areaHeight,
+      0x12121f,
+      0.9
+    );
+    cardsBg.setStrokeStyle(2, 0x2a2a4a);
 
-    // 탭 버튼들
-    this.createTabButtons(panelX + 20, panelY + 20);
-
-    // 파츠 목록 영역
-    this.createPartsGrid(panelX + 20, panelY + 70);
-  }
-
-  /**
-   * 탭 버튼 생성
-   */
-  private createTabButtons(startX: number, startY: number): void {
-    const tabs = ['다리', '몸통', '팔/무기'];
-    this.tabButtons = [];
-
-    tabs.forEach((tabName, index) => {
-      const x = startX + index * 120 + 50;
-      const container = this.add.container(x, startY);
-
-      const bg = this.add.rectangle(0, 0, 110, 35, index === 0 ? COLORS.UI_ACCENT : 0x2d2d4a);
-      bg.setStrokeStyle(1, 0x4a4a6a);
-      bg.setInteractive({ useHandCursor: true });
-
-      const text = this.add.text(0, 0, tabName, {
-        fontSize: '14px',
-        color: '#ffffff',
-      });
-      text.setOrigin(0.5);
-
-      container.add([bg, text]);
-      this.tabButtons.push(container);
-
-      bg.on('pointerdown', () => {
-        this.selectTab(index);
-      });
+    // 제약 조건 표시
+    this.constraintInfoText = this.add.text(CARDS_AREA_X + CARDS_AREA_WIDTH - 15, CONTENT_Y + 18, '', {
+      fontSize: '11px',
+      color: '#66aaff',
+      align: 'right',
     });
+    this.constraintInfoText.setOrigin(1, 0.5);
+
+    // 3개 파츠 카테고리
+    const rowHeight = (areaHeight - 40) / 3;
+
+    this.createPartCardRow('🦿 다리', CONTENT_Y + 10, rowHeight, Object.values(LEG_PARTS), PartTabType.LEGS, this.legsCards);
+    this.createPartCardRow('🛡 몸통', CONTENT_Y + 10 + rowHeight, rowHeight, Object.values(BODY_PARTS), PartTabType.BODY, this.bodyCards);
+    this.createPartCardRow('🔫 팔/무기', CONTENT_Y + 10 + rowHeight * 2, rowHeight, Object.values(ARM_PARTS), PartTabType.ARMS, this.armsCards);
   }
 
   /**
-   * 파츠 그리드 생성
+   * 파츠 카드 행 생성
    */
-  private createPartsGrid(startX: number, startY: number): void {
-    // 이 메서드는 updatePartsGrid에서 동적으로 업데이트됨
-    this.partButtons = [];
-    this.updatePartsGrid(startX, startY);
-  }
+  private createPartCardRow(
+    label: string,
+    startY: number,
+    rowHeight: number,
+    parts: (LegPart | BodyPart | ArmPart)[],
+    tabType: PartTabType,
+    cardArray: Phaser.GameObjects.Container[]
+  ): void {
+    const { CARDS_AREA_X, PART_CARD_WIDTH, PART_CARD_HEIGHT } = LAYOUT;
 
-  /**
-   * 파츠 그리드 업데이트
-   */
-  private updatePartsGrid(startX: number, startY: number): void {
-    // 기존 버튼 제거
-    this.partButtons.forEach((btn) => btn.destroy());
-    this.partButtons = [];
+    // 카테고리 라벨
+    this.add.text(CARDS_AREA_X + 15, startY + 15, label, {
+      fontSize: '14px',
+      color: '#aaccee',
+      fontStyle: 'bold',
+    });
 
-    let parts: (LegPart | BodyPart | ArmPart)[] = [];
-    let currentId = '';
+    // 구분선
+    const line = this.add.rectangle(
+      CARDS_AREA_X + LAYOUT.CARDS_AREA_WIDTH / 2,
+      startY + rowHeight - 5,
+      LAYOUT.CARDS_AREA_WIDTH - 30,
+      1,
+      0x2a2a4a
+    );
+    line.setAlpha(0.5);
 
-    if (this.currentTab === 0) {
-      parts = Object.values(LEG_PARTS);
-      currentId = this.currentLegsId;
-    } else if (this.currentTab === 1) {
-      parts = Object.values(BODY_PARTS);
-      currentId = this.currentBodyId;
-    } else {
-      parts = Object.values(ARM_PARTS);
-      currentId = this.currentArmsId;
-    }
+    // 파츠 카드들
+    const cardStartX = CARDS_AREA_X + 20;
+    const cardStartY = startY + 45;
+    const gap = 10;
 
     parts.forEach((part, index) => {
-      const col = index % 3;
-      const row = Math.floor(index / 3);
-      const x = startX + col * 170 + 80;
-      const y = startY + row * 85 + 40;
+      const x = cardStartX + index * (PART_CARD_WIDTH + gap) + PART_CARD_WIDTH / 2;
+      const y = cardStartY + PART_CARD_HEIGHT / 2;
 
-      const isSelected = part.id === currentId;
-      const container = this.createPartButton(x, y, part, isSelected);
-      this.partButtons.push(container);
+      const card = this.createPartCard(x, y, part, tabType);
+      cardArray.push(card);
     });
   }
 
   /**
-   * 파츠 버튼 생성
+   * 파츠 카드 생성
    */
-  private createPartButton(
+  private createPartCard(
     x: number,
     y: number,
     part: LegPart | BodyPart | ArmPart,
-    isSelected: boolean
+    tabType: PartTabType
   ): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
+    const { PART_CARD_WIDTH, PART_CARD_HEIGHT } = LAYOUT;
 
-    const bgColor = isSelected ? COLORS.UI_ACCENT : 0x2d2d4a;
-    const bg = this.add.rectangle(0, 0, 155, 70, bgColor);
-    bg.setStrokeStyle(2, isSelected ? 0xffffff : 0x4a4a6a);
+    // 카드 배경
+    const bg = this.add.rectangle(0, 0, PART_CARD_WIDTH, PART_CARD_HEIGHT, 0x1a1a30);
+    bg.setStrokeStyle(2, 0x3a3a5a);
     bg.setInteractive({ useHandCursor: true });
+    bg.setName('bg');
 
     // 파츠 이름
-    const nameText = this.add.text(0, -18, part.nameKo, {
-      fontSize: '14px',
+    const nameText = this.add.text(0, -22, part.nameKo, {
+      fontSize: '13px',
       color: '#ffffff',
       fontStyle: 'bold',
     });
     nameText.setOrigin(0.5);
+    nameText.setName('nameText');
 
     // 파츠 정보
     let infoStr = '';
     if ('capacity' in part) {
-      // LegPart
       const leg = part as LegPart;
-      const speedKo = leg.speed === SpeedGrade.FAST ? '빠름' : leg.speed === SpeedGrade.NORMAL ? '보통' : '느림';
       const typeKo = leg.movementType === MovementType.FLIGHT ? '비행' : '지상';
-      infoStr = `하중: ${leg.capacity} | ${speedKo} | ${typeKo}`;
+      infoStr = `하중:${leg.capacity} | ${typeKo}`;
     } else if ('hp' in part) {
-      // BodyPart
       const body = part as BodyPart;
-      const weaponKo = body.weaponType === WeaponType.ALL ? '모든타입' : 
-                       body.weaponType === WeaponType.LIGHT ? '경무장' : '중무장';
-      infoStr = `HP: ${body.hp} | 무게: ${body.weight} | ${weaponKo}`;
+      infoStr = `HP:${body.hp} | 무게:${body.weight}`;
     } else {
-      // ArmPart
       const arm = part as ArmPart;
-      const speedKo = arm.attackSpeed === SpeedGrade.FAST ? '빠름' : arm.attackSpeed === SpeedGrade.NORMAL ? '보통' : '느림';
-      infoStr = `공격: ${arm.attack} | 무게: ${arm.weight} | ${speedKo}`;
+      infoStr = `공격:${arm.attack} | 무게:${arm.weight}`;
     }
 
-    const infoText = this.add.text(0, 5, infoStr, {
+    const infoText = this.add.text(0, 0, infoStr, {
       fontSize: '10px',
-      color: '#aaaaaa',
+      color: '#8899aa',
     });
     infoText.setOrigin(0.5);
+    infoText.setName('infoText');
 
     // 비용
-    const costText = this.add.text(0, 22, `${part.cost} 광물`, {
+    const costText = this.add.text(0, 22, `💰 ${part.cost}`, {
       fontSize: '10px',
-      color: '#ffd700',
+      color: '#ffcc44',
     });
     costText.setOrigin(0.5);
+    costText.setName('costText');
 
     container.add([bg, nameText, infoText, costText]);
+    container.setData('partId', part.id);
+    container.setData('tabType', tabType);
 
-    // 클릭 이벤트
+    // 클릭
     bg.on('pointerdown', () => {
-      this.selectPart(part.id);
+      this.selectPart(part.id, tabType);
+    });
+
+    // 호버
+    bg.on('pointerover', () => {
+      const currentBg = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+      if (currentBg.strokeColor !== 0x44aaff) {
+        currentBg.setFillStyle(0x252545);
+        container.setScale(1.03);
+      }
+    });
+
+    bg.on('pointerout', () => {
+      const currentBg = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+      if (currentBg.strokeColor !== 0x44aaff) {
+        currentBg.setFillStyle(0x1a1a30);
+      }
+      container.setScale(1);
     });
 
     return container;
   }
 
   /**
-   * 미리보기 패널 생성 (하단)
+   * 우측 프리뷰 패널
    */
   private createPreviewPanel(): void {
-    const panelX = 20;
-    const panelY = 450;
-    const panelWidth = GAME_CONFIG.WIDTH - 40;
-    const panelHeight = 250;
+    const { PREVIEW_AREA_X, PREVIEW_AREA_WIDTH, CONTENT_Y } = LAYOUT;
+    const panelHeight = GAME_CONFIG.HEIGHT - CONTENT_Y - 20;
 
-    // 패널 배경
-    const bg = this.add.rectangle(panelX + panelWidth / 2, panelY + panelHeight / 2, panelWidth, panelHeight, 0x1a1a2e, 0.9);
-    bg.setStrokeStyle(2, 0x3d3d5c);
+    // 프리뷰 배경
+    const previewBg = this.add.rectangle(
+      PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2,
+      CONTENT_Y + panelHeight / 2,
+      PREVIEW_AREA_WIDTH,
+      panelHeight,
+      0x16162a,
+      0.95
+    );
+    previewBg.setStrokeStyle(2, 0x3a3a6a);
 
-    // 유닛 이름 (클릭하여 수정 가능)
-    this.unitNameText = this.add.text(panelX + 120, panelY + 30, '', {
-      fontSize: '22px',
+    // 타이틀
+    this.add.text(PREVIEW_AREA_X + 20, CONTENT_Y + 15, '현재 유닛', {
+      fontSize: '14px',
+      color: '#88aacc',
+      fontStyle: 'bold',
+    });
+
+    // 유닛 이름 (클릭 편집)
+    this.unitNameText = this.add.text(PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2, CONTENT_Y + 55, '', {
+      fontSize: '20px',
       color: '#ffffff',
       fontStyle: 'bold',
     });
@@ -413,88 +448,32 @@ export class UnitSetupScene extends Phaser.Scene {
       this.editUnitName();
     });
 
-    // 이름 수정 힌트
-    this.add.text(panelX + 120, panelY + 55, '(클릭하여 이름 수정)', {
-      fontSize: '10px',
-      color: '#666666',
+    this.add.text(PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2, CONTENT_Y + 80, '(클릭하여 이름 수정)', {
+      fontSize: '9px',
+      color: '#556677',
     }).setOrigin(0.5);
 
     // 미리보기 그래픽
     this.previewGraphics = this.add.graphics();
-    this.updatePreviewGraphic(panelX + 120, panelY + 130);
 
     // 스탯 정보
-    this.statsText = this.add.text(panelX + 280, panelY + 30, '', {
-      fontSize: '14px',
-      color: '#cccccc',
+    this.statsText = this.add.text(PREVIEW_AREA_X + 30, CONTENT_Y + 280, '', {
+      fontSize: '13px',
+      color: '#aabbcc',
       lineSpacing: 8,
     });
 
     // 에러 메시지
-    this.errorText = this.add.text(panelX + panelWidth / 2, panelY + panelHeight - 30, '', {
-      fontSize: '14px',
-      color: '#ff4444',
+    this.errorText = this.add.text(PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2, CONTENT_Y + panelHeight - 30, '', {
+      fontSize: '11px',
+      color: '#ff6666',
     });
     this.errorText.setOrigin(0.5);
   }
 
-  /**
-   * 미리보기 그래픽 업데이트
-   */
-  private updatePreviewGraphic(x: number, y: number): void {
-    this.previewGraphics.clear();
-
-    const slot = this.unitSlots[this.selectedSlotIndex];
-    if (!slot.build) {
-      // 유효하지 않은 조합
-      this.previewGraphics.fillStyle(0x444444, 1);
-      this.previewGraphics.fillCircle(x, y, 40);
-      this.previewGraphics.lineStyle(3, 0xff4444);
-      this.previewGraphics.strokeCircle(x, y, 40);
-      return;
-    }
-
-    const isFlying = slot.build.stats.movementType === MovementType.FLIGHT;
-
-    // 다리 (하단)
-    this.previewGraphics.fillStyle(isFlying ? 0x4a90d9 : 0x6a6a8a, 1);
-    if (isFlying) {
-      // 비행 유닛: 호버 이펙트
-      this.previewGraphics.fillTriangle(x - 25, y + 30, x + 25, y + 30, x, y + 50);
-      this.previewGraphics.fillStyle(0x4a90d9, 0.5);
-      this.previewGraphics.fillEllipse(x, y + 55, 60, 15);
-    } else {
-      // 지상 유닛: 다리
-      this.previewGraphics.fillRect(x - 20, y + 20, 12, 30);
-      this.previewGraphics.fillRect(x + 8, y + 20, 12, 30);
-    }
-
-    // 몸통 (중앙)
-    const bodyColor = slot.build.body.hasShield ? 0x00cccc : COLORS.ALLY_PRIMARY;
-    this.previewGraphics.fillStyle(bodyColor, 1);
-    this.previewGraphics.fillRect(x - 25, y - 20, 50, 45);
-    this.previewGraphics.lineStyle(2, 0xffffff, 0.5);
-    this.previewGraphics.strokeRect(x - 25, y - 20, 50, 45);
-
-    // 팔/무기 (상단 좌우)
-    const armColor = slot.build.arms.isPiercing ? 0x00ff00 : 
-                     slot.build.arms.isAoe ? 0xff8800 : 0x888888;
-    this.previewGraphics.fillStyle(armColor, 1);
-    this.previewGraphics.fillRect(x - 40, y - 10, 12, 25);
-    this.previewGraphics.fillRect(x + 28, y - 10, 12, 25);
-
-    // 머리
-    this.previewGraphics.fillStyle(0xaaaaaa, 1);
-    this.previewGraphics.fillCircle(x, y - 30, 12);
-  }
-
-  /**
-   * 슬롯 선택
-   */
   private selectSlot(index: number): void {
     this.selectedSlotIndex = index;
 
-    // 현재 슬롯의 파츠 설정 로드
     const slot = this.unitSlots[index];
     this.currentLegsId = slot.config.legsId;
     this.currentBodyId = slot.config.bodyId;
@@ -503,43 +482,19 @@ export class UnitSetupScene extends Phaser.Scene {
     this.updateUI();
   }
 
-  /**
-   * 탭 선택
-   */
-  private selectTab(index: number): void {
-    this.currentTab = index;
-
-    // 탭 버튼 스타일 업데이트
-    this.tabButtons.forEach((container, i) => {
-      const bg = container.getAt(0) as Phaser.GameObjects.Rectangle;
-      bg.setFillStyle(i === index ? COLORS.UI_ACCENT : 0x2d2d4a);
-    });
-
-    // 파츠 그리드 업데이트
-    this.updatePartsGrid(260, 150);
-  }
-
-  /**
-   * 파츠 선택
-   */
-  private selectPart(partId: string): void {
-    if (this.currentTab === 0) {
+  private selectPart(partId: string, tabType: PartTabType): void {
+    if (tabType === PartTabType.LEGS) {
       this.currentLegsId = partId;
-    } else if (this.currentTab === 1) {
+    } else if (tabType === PartTabType.BODY) {
       this.currentBodyId = partId;
     } else {
       this.currentArmsId = partId;
     }
 
-    // 현재 슬롯에 저장
     this.saveCurrentSlot();
-
     this.updateUI();
   }
 
-  /**
-   * 현재 슬롯 저장
-   */
   private saveCurrentSlot(): void {
     const slot = this.unitSlots[this.selectedSlotIndex];
     slot.config = {
@@ -550,12 +505,15 @@ export class UnitSetupScene extends Phaser.Scene {
     slot.build = buildMech(slot.config);
   }
 
-  /**
-   * UI 전체 업데이트
-   */
   private updateUI(): void {
-    // 슬롯 버튼 업데이트
-    this.slotButtons.forEach((container, index) => {
+    this.updateSlotCards();
+    this.updatePartsCards();
+    this.updateConstraintInfo();
+    this.updatePreview();
+  }
+
+  private updateSlotCards(): void {
+    this.slotCards.forEach((container, index) => {
       const bg = container.getAt(0) as Phaser.GameObjects.Rectangle;
       const nameText = container.getByName('nameText') as Phaser.GameObjects.Text;
       const costText = container.getByName('costText') as Phaser.GameObjects.Text;
@@ -563,43 +521,121 @@ export class UnitSetupScene extends Phaser.Scene {
       const slot = this.unitSlots[index];
       const isSelected = index === this.selectedSlotIndex;
 
-      bg.setFillStyle(isSelected ? COLORS.UI_ACCENT : 0x2d2d4a);
-      bg.setStrokeStyle(2, isSelected ? 0xffffff : 0x4a4a6a);
+      // 선택된 카드 스타일
+      if (isSelected) {
+        bg.setFillStyle(0x2244aa);
+        bg.setStrokeStyle(3, 0x44aaff);
+        container.setScale(1.05);
+      } else {
+        bg.setFillStyle(0x1e1e3a);
+        bg.setStrokeStyle(2, 0x3a3a5a);
+        container.setScale(1);
+      }
 
       const name = this.generateUnitName(slot);
       nameText.setText(name.length > 10 ? name.substring(0, 10) + '..' : name);
 
       if (slot.build) {
-        costText.setText(`${slot.build.stats.cost}광물`);
+        costText.setText(`💰 ${slot.build.stats.cost}`);
+        costText.setColor('#ffcc44');
       } else {
-        costText.setText('조합 불가');
-        costText.setColor('#ff4444');
+        costText.setText('❌ 불가');
+        costText.setColor('#ff6666');
       }
     });
-
-    // 파츠 그리드 업데이트
-    this.updatePartsGrid(260, 150);
-
-    // 미리보기 업데이트
-    this.updatePreview();
   }
 
-  /**
-   * 미리보기 패널 업데이트
-   */
+  private updatePartsCards(): void {
+    const currentSlot = this.unitSlots[this.selectedSlotIndex];
+    const currentConfig = currentSlot.config;
+
+    this.updatePartCardRow(this.legsCards, this.currentLegsId, PartTabType.LEGS, currentConfig);
+    this.updatePartCardRow(this.bodyCards, this.currentBodyId, PartTabType.BODY, currentConfig);
+    this.updatePartCardRow(this.armsCards, this.currentArmsId, PartTabType.ARMS, currentConfig);
+  }
+
+  private updatePartCardRow(
+    cards: Phaser.GameObjects.Container[],
+    selectedId: string,
+    tabType: PartTabType,
+    currentConfig: MechConfig
+  ): void {
+    cards.forEach((container) => {
+      const partId = container.getData('partId') as string;
+      const isSelected = partId === selectedId;
+      const compatibility = checkPartCompatibility(currentConfig, tabType, partId);
+
+      const bg = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+      const nameText = container.getByName('nameText') as Phaser.GameObjects.Text;
+      const infoText = container.getByName('infoText') as Phaser.GameObjects.Text;
+      const costText = container.getByName('costText') as Phaser.GameObjects.Text;
+
+      if (isSelected) {
+        bg.setFillStyle(0x2255aa);
+        bg.setStrokeStyle(3, 0x44aaff);
+        nameText.setColor('#ffffff');
+        infoText.setColor('#aabbcc');
+      } else if (!compatibility.isCompatible) {
+        bg.setFillStyle(0x1a1a25);
+        bg.setStrokeStyle(2, 0x663333);
+        bg.setAlpha(0.6);
+        nameText.setColor('#666677');
+        infoText.setColor('#555566');
+        if (compatibility.reason) {
+          costText.setText(`⚠ ${compatibility.reason}`);
+          costText.setColor('#ff6666');
+          costText.setFontSize(9);
+        }
+      } else {
+        bg.setFillStyle(0x1a1a30);
+        bg.setStrokeStyle(2, 0x3a3a5a);
+        bg.setAlpha(1);
+        nameText.setColor('#ffffff');
+        infoText.setColor('#8899aa');
+      }
+
+      // 비용 복원
+      if (compatibility.isCompatible || isSelected) {
+        let part: LegPart | BodyPart | ArmPart | undefined;
+        if (tabType === PartTabType.LEGS) part = LEG_PARTS[partId];
+        else if (tabType === PartTabType.BODY) part = BODY_PARTS[partId];
+        else part = ARM_PARTS[partId];
+
+        if (part) {
+          costText.setText(`💰 ${part.cost}`);
+          costText.setColor('#ffcc44');
+          costText.setFontSize(10);
+        }
+      }
+    });
+  }
+
+  private updateConstraintInfo(): void {
+    const currentSlot = this.unitSlots[this.selectedSlotIndex];
+    const constraints = getCurrentConstraints(currentSlot.config);
+
+    if (!constraints) {
+      this.constraintInfoText.setText('');
+      return;
+    }
+
+    const infoText = `⚖ 하중: ${constraints.usedWeight}/${constraints.currentCapacity} | 🔧 ${constraints.bodyWeaponTypeKo}`;
+    this.constraintInfoText.setText(infoText);
+  }
+
   private updatePreview(): void {
     const slot = this.unitSlots[this.selectedSlotIndex];
     const validation = validateMechConfig(slot.config);
 
-    // 유닛 이름
     const name = this.generateUnitName(slot);
     this.unitNameText.setText(name);
 
     // 미리보기 그래픽
-    this.updatePreviewGraphic(140, 580);
+    const previewX = LAYOUT.PREVIEW_AREA_X + LAYOUT.PREVIEW_AREA_WIDTH / 2;
+    const previewY = LAYOUT.CONTENT_Y + 180;
+    this.updatePreviewGraphic(previewX, previewY);
 
     if (!validation.isValid) {
-      // 에러 표시
       this.errorText.setText(validation.errors.join('\n'));
       this.statsText.setText('조합이 유효하지 않습니다.');
       return;
@@ -607,70 +643,103 @@ export class UnitSetupScene extends Phaser.Scene {
 
     this.errorText.setText('');
 
-    // 스탯 표시
     const stats = slot.build!.stats;
     const speedKo = stats.speed >= 1.4 ? '빠름' : stats.speed >= 1.1 ? '보통' : '느림';
     const moveTypeKo = stats.movementType === MovementType.FLIGHT ? '비행' : '지상';
 
     const specials: string[] = [];
-    if (stats.hasShield) specials.push('쉴드');
-    if (stats.isPiercing) specials.push('관통');
-    if (stats.isAoe) specials.push('범위공격');
-    if (stats.isHealer) specials.push('수리');
-    if (stats.defenseBonus > 0) specials.push(`방어+${Math.floor(stats.defenseBonus * 100)}%`);
+    if (stats.hasShield) specials.push('🛡쉴드');
+    if (stats.isPiercing) specials.push('⚡관통');
+    if (stats.isAoe) specials.push('💥범위');
+    if (stats.isHealer) specials.push('💚수리');
+    if (stats.defenseBonus > 0) specials.push(`🔰+${Math.floor(stats.defenseBonus * 100)}%`);
 
     const statsStr = [
-      `HP: ${stats.hp}`,
-      `공격력: ${stats.attack}`,
-      `속도: ${speedKo} (${stats.speed.toFixed(1)})`,
-      `사거리: ${stats.range}px`,
-      `이동: ${moveTypeKo}`,
+      `❤ HP: ${stats.hp}`,
+      `⚔ 공격력: ${stats.attack}`,
+      `💨 속도: ${speedKo} (${stats.speed.toFixed(1)})`,
+      `🎯 사거리: ${stats.range}px`,
+      `📍 이동: ${moveTypeKo}`,
       ``,
-      `비용: ${stats.cost} 광물`,
-      `생산시간: ${(stats.productionTime / 1000).toFixed(1)}초`,
+      `💰 비용: ${stats.cost} 광물`,
+      `⏱ 생산: ${(stats.productionTime / 1000).toFixed(1)}초`,
       ``,
-      `특수: ${specials.length > 0 ? specials.join(', ') : '없음'}`,
+      `✨ 특수: ${specials.length > 0 ? specials.join(' ') : '없음'}`,
     ].join('\n');
 
     this.statsText.setText(statsStr);
   }
 
-  /**
-   * 유닛 이름 생성
-   */
-  private generateUnitName(slot: UnitSlot): string {
-    if (slot.customName) {
-      return slot.customName;
+  private updatePreviewGraphic(x: number, y: number): void {
+    this.previewGraphics.clear();
+
+    const slot = this.unitSlots[this.selectedSlotIndex];
+    if (!slot.build) {
+      this.previewGraphics.fillStyle(0x333344, 1);
+      this.previewGraphics.fillCircle(x, y, 45);
+      this.previewGraphics.lineStyle(3, 0xff4444);
+      this.previewGraphics.strokeCircle(x, y, 45);
+      return;
     }
+
+    const scale = 1.2;
+    const isFlying = slot.build.stats.movementType === MovementType.FLIGHT;
+
+    // 다리
+    this.previewGraphics.fillStyle(isFlying ? 0x4a90d9 : 0x6a6a8a, 1);
+    if (isFlying) {
+      this.previewGraphics.fillTriangle(
+        x - 30 * scale, y + 35 * scale,
+        x + 30 * scale, y + 35 * scale,
+        x, y + 55 * scale
+      );
+      this.previewGraphics.fillStyle(0x4a90d9, 0.4);
+      this.previewGraphics.fillEllipse(x, y + 60 * scale, 70 * scale, 18 * scale);
+    } else {
+      this.previewGraphics.fillRect(x - 24 * scale, y + 25 * scale, 14 * scale, 35 * scale);
+      this.previewGraphics.fillRect(x + 10 * scale, y + 25 * scale, 14 * scale, 35 * scale);
+    }
+
+    // 몸통
+    const bodyColor = slot.build.body.hasShield ? 0x00cccc : COLORS.ALLY_PRIMARY;
+    this.previewGraphics.fillStyle(bodyColor, 1);
+    this.previewGraphics.fillRect(x - 30 * scale, y - 20 * scale, 60 * scale, 50 * scale);
+    this.previewGraphics.lineStyle(2, 0xffffff, 0.4);
+    this.previewGraphics.strokeRect(x - 30 * scale, y - 20 * scale, 60 * scale, 50 * scale);
+
+    // 팔
+    const armColor = slot.build.arms.isPiercing ? 0x00ff88 :
+                     slot.build.arms.isAoe ? 0xff8800 : 0x888899;
+    this.previewGraphics.fillStyle(armColor, 1);
+    this.previewGraphics.fillRect(x - 48 * scale, y - 10 * scale, 15 * scale, 30 * scale);
+    this.previewGraphics.fillRect(x + 33 * scale, y - 10 * scale, 15 * scale, 30 * scale);
+
+    // 머리
+    this.previewGraphics.fillStyle(0xaaaaaa, 1);
+    this.previewGraphics.fillCircle(x, y - 35 * scale, 15 * scale);
+    this.previewGraphics.fillStyle(0x44aaff, 1);
+    this.previewGraphics.fillCircle(x, y - 35 * scale, 6 * scale);
+  }
+
+  private generateUnitName(slot: UnitSlot): string {
+    if (slot.customName) return slot.customName;
 
     const legs = LEG_PARTS[slot.config.legsId];
     const body = BODY_PARTS[slot.config.bodyId];
 
-    if (!legs || !body) {
-      return '알 수 없음';
-    }
+    if (!legs || !body) return '알 수 없음';
 
-    // 무게 등급 결정
     let weightClass = '';
-    if (body.weight <= 10) {
-      weightClass = '경량';
-    } else if (body.weight <= 18) {
-      weightClass = '표준';
-    } else {
-      weightClass = '중장';
-    }
+    if (body.weight <= 10) weightClass = '경량';
+    else if (body.weight <= 18) weightClass = '표준';
+    else weightClass = '중장';
 
     return `${weightClass} ${legs.nameKo}`;
   }
 
-  /**
-   * 유닛 이름 편집
-   */
   private editUnitName(): void {
     const slot = this.unitSlots[this.selectedSlotIndex];
     const currentName = this.generateUnitName(slot);
-
-    // 간단한 프롬프트 (브라우저 prompt 사용)
     const newName = prompt('유닛 이름을 입력하세요:', currentName);
 
     if (newName && newName.trim().length > 0) {
@@ -679,11 +748,7 @@ export class UnitSetupScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * 게임 시작
-   */
   private startGame(): void {
-    // 유효한 빌드만 필터링
     const validBuilds = this.unitSlots
       .filter((slot) => slot.build !== null)
       .map((slot) => ({
@@ -696,17 +761,11 @@ export class UnitSetupScene extends Phaser.Scene {
       return;
     }
 
-    // 빌드 데이터를 레지스트리에 저장
     this.registry.set('unitBuilds', validBuilds);
-
-    // 게임 시작
     this.scene.start('GameScene');
     this.scene.start('UIScene');
   }
 
-  /**
-   * 버튼 생성 헬퍼
-   */
   private createButton(
     x: number,
     y: number,
@@ -714,13 +773,13 @@ export class UnitSetupScene extends Phaser.Scene {
     callback: () => void,
     width = 100,
     height = 35,
-    bgColor = COLORS.UI_BACKGROUND
+    bgColor = 0x1a1a2e
   ): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
     container.setDepth(15);
 
     const bg = this.add.rectangle(0, 0, width, height, bgColor);
-    bg.setStrokeStyle(2, 0x4a4a6a);
+    bg.setStrokeStyle(2, 0x3a3a5a);
     bg.setInteractive({ useHandCursor: true });
 
     const buttonText = this.add.text(0, 0, text, {
@@ -732,7 +791,7 @@ export class UnitSetupScene extends Phaser.Scene {
     container.add([bg, buttonText]);
 
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x4a4a6a);
+      bg.setFillStyle(0x3a3a5a);
     });
 
     bg.on('pointerout', () => {
@@ -744,4 +803,3 @@ export class UnitSetupScene extends Phaser.Scene {
     return container;
   }
 }
-

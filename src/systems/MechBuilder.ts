@@ -27,6 +27,19 @@ export type ValidationResult = {
   errors: string[];
 };
 
+// 파츠 호환성 결과
+export type PartCompatibility = {
+  isCompatible: boolean;
+  reason: string | null;
+};
+
+// 파츠 탭 타입
+export enum PartTabType {
+  LEGS = 0,
+  BODY = 1,
+  ARMS = 2,
+}
+
 // 계산된 메카 스탯
 export type MechStats = {
   hp: number;
@@ -211,5 +224,128 @@ export const getAllValidCombinations = (): MechConfig[] => {
   }
 
   return validCombos;
+};
+
+/**
+ * 무기 타입 호환 여부 확인 (내부 유틸)
+ */
+const isWeaponTypeCompatible = (bodyWeaponType: WeaponType, armsWeaponType: WeaponType): boolean => {
+  if (bodyWeaponType === WeaponType.ALL) return true;
+  if (armsWeaponType === WeaponType.SPECIAL && bodyWeaponType === WeaponType.LIGHT) return true;
+  return bodyWeaponType === armsWeaponType;
+};
+
+/**
+ * 무기 타입을 한글로 변환
+ */
+const getWeaponTypeKo = (weaponType: WeaponType): string => {
+  switch (weaponType) {
+    case WeaponType.LIGHT: return '경무장';
+    case WeaponType.HEAVY: return '중무장';
+    case WeaponType.SPECIAL: return '특수';
+    case WeaponType.ALL: return '모든 타입';
+    default: return weaponType;
+  }
+};
+
+/**
+ * 현재 조합에서 특정 파츠가 호환 가능한지 확인
+ */
+export const checkPartCompatibility = (
+  currentConfig: MechConfig,
+  tabType: PartTabType,
+  partId: string
+): PartCompatibility => {
+  const currentLegs = getLegs(currentConfig.legsId);
+  const currentBody = getBody(currentConfig.bodyId);
+  const currentArms = getArms(currentConfig.armsId);
+
+  if (!currentLegs || !currentBody || !currentArms) {
+    return { isCompatible: false, reason: '현재 조합 오류' };
+  }
+
+  if (tabType === PartTabType.LEGS) {
+    const newLegs = getLegs(partId);
+    if (!newLegs) return { isCompatible: false, reason: '파츠를 찾을 수 없음' };
+
+    const totalWeight = currentBody.weight + currentArms.weight;
+    if (newLegs.capacity < totalWeight) {
+      return {
+        isCompatible: false,
+        reason: `하중 초과 (${newLegs.capacity} < ${totalWeight})`,
+      };
+    }
+  }
+
+  if (tabType === PartTabType.BODY) {
+    const newBody = getBody(partId);
+    if (!newBody) return { isCompatible: false, reason: '파츠를 찾을 수 없음' };
+
+    const totalWeight = newBody.weight + currentArms.weight;
+    if (currentLegs.capacity < totalWeight) {
+      return {
+        isCompatible: false,
+        reason: `하중 초과 (${totalWeight} > ${currentLegs.capacity})`,
+      };
+    }
+
+    if (!isWeaponTypeCompatible(newBody.weaponType, currentArms.weaponType)) {
+      return {
+        isCompatible: false,
+        reason: `무기 타입 불일치 (${getWeaponTypeKo(newBody.weaponType)})`,
+      };
+    }
+  }
+
+  if (tabType === PartTabType.ARMS) {
+    const newArms = getArms(partId);
+    if (!newArms) return { isCompatible: false, reason: '파츠를 찾을 수 없음' };
+
+    const totalWeight = currentBody.weight + newArms.weight;
+    if (currentLegs.capacity < totalWeight) {
+      return {
+        isCompatible: false,
+        reason: `하중 초과 (${totalWeight} > ${currentLegs.capacity})`,
+      };
+    }
+
+    if (!isWeaponTypeCompatible(currentBody.weaponType, newArms.weaponType)) {
+      return {
+        isCompatible: false,
+        reason: `${getWeaponTypeKo(currentBody.weaponType)} 전용`,
+      };
+    }
+  }
+
+  return { isCompatible: true, reason: null };
+};
+
+/**
+ * 현재 조합의 제약 조건 정보 반환
+ */
+export type ConstraintInfo = {
+  currentCapacity: number;
+  usedWeight: number;
+  remainingCapacity: number;
+  bodyWeaponType: WeaponType;
+  bodyWeaponTypeKo: string;
+};
+
+export const getCurrentConstraints = (config: MechConfig): ConstraintInfo | null => {
+  const legs = getLegs(config.legsId);
+  const body = getBody(config.bodyId);
+  const arms = getArms(config.armsId);
+
+  if (!legs || !body || !arms) return null;
+
+  const usedWeight = body.weight + arms.weight;
+
+  return {
+    currentCapacity: legs.capacity,
+    usedWeight,
+    remainingCapacity: legs.capacity - usedWeight,
+    bodyWeaponType: body.weaponType,
+    bodyWeaponTypeKo: getWeaponTypeKo(body.weaponType),
+  };
 };
 
