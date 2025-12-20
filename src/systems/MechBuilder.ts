@@ -229,7 +229,10 @@ export const getAllValidCombinations = (): MechConfig[] => {
 /**
  * 무기 타입 호환 여부 확인 (내부 유틸)
  */
-const isWeaponTypeCompatible = (bodyWeaponType: WeaponType, armsWeaponType: WeaponType): boolean => {
+const isWeaponTypeCompatible = (
+  bodyWeaponType: WeaponType,
+  armsWeaponType: WeaponType
+): boolean => {
   if (bodyWeaponType === WeaponType.ALL) return true;
   if (armsWeaponType === WeaponType.SPECIAL && bodyWeaponType === WeaponType.LIGHT) return true;
   return bodyWeaponType === armsWeaponType;
@@ -240,11 +243,16 @@ const isWeaponTypeCompatible = (bodyWeaponType: WeaponType, armsWeaponType: Weap
  */
 const getWeaponTypeKo = (weaponType: WeaponType): string => {
   switch (weaponType) {
-    case WeaponType.LIGHT: return '경무장';
-    case WeaponType.HEAVY: return '중무장';
-    case WeaponType.SPECIAL: return '특수';
-    case WeaponType.ALL: return '모든 타입';
-    default: return weaponType;
+    case WeaponType.LIGHT:
+      return '경무장';
+    case WeaponType.HEAVY:
+      return '중무장';
+    case WeaponType.SPECIAL:
+      return '특수';
+    case WeaponType.ALL:
+      return '모든 타입';
+    default:
+      return weaponType;
   }
 };
 
@@ -348,4 +356,3 @@ export const getCurrentConstraints = (config: MechConfig): ConstraintInfo | null
     bodyWeaponTypeKo: getWeaponTypeKo(body.weaponType),
   };
 };
-

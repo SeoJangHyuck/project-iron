@@ -1,5 +1,12 @@
 import Phaser from 'phaser';
-import { GAME_CONFIG, COLORS, RESOURCE_CONFIG, ENEMY_CONFIG, BASE_CONFIG, UNIT_CONFIG } from '../config/gameConfig';
+import {
+  GAME_CONFIG,
+  COLORS,
+  RESOURCE_CONFIG,
+  ENEMY_CONFIG,
+  BASE_CONFIG,
+  UNIT_CONFIG,
+} from '../config/gameConfig';
 import { IsometricGrid } from '../systems/IsometricGrid';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { Enemy } from '../entities/Enemy';
@@ -64,7 +71,9 @@ export class GameScene extends Phaser.Scene {
   private enemyBaseHpText!: Phaser.GameObjects.Text;
 
   // 기지 위치 (그리드 좌표) - GRID_HEIGHT에 맞게 동적으로 계산
-  private get allyBasePos() { return { x: 7, y: GAME_CONFIG.GRID_HEIGHT - 1 }; }
+  private get allyBasePos() {
+    return { x: 7, y: GAME_CONFIG.GRID_HEIGHT - 1 };
+  }
   private enemySpawnPos = { x: 7, y: 0 };
 
   // 일꾼 시각화
@@ -111,7 +120,9 @@ export class GameScene extends Phaser.Scene {
     this.initializeSystems();
 
     // 편성 화면에서 유닛 빌드 받아오기
-    const registryBuilds = this.registry.get('unitBuilds') as { build: MechBuild; name: string }[] | undefined;
+    const registryBuilds = this.registry.get('unitBuilds') as
+      | { build: MechBuild; name: string }[]
+      | undefined;
     if (registryBuilds && registryBuilds.length > 0) {
       this.unitBuilds = registryBuilds;
     } else {
@@ -211,12 +222,10 @@ export class GameScene extends Phaser.Scene {
     allyBase.setStrokeStyle(3, COLORS.ALLY_SECONDARY);
     allyBase.setDepth(100);
 
-    const allyText = this.add.text(
-      offsetX + allyIso.x,
-      offsetY + allyIso.y - 16,
-      '기지',
-      { fontSize: '12px', color: '#ffffff' }
-    );
+    const allyText = this.add.text(offsetX + allyIso.x, offsetY + allyIso.y - 16, '기지', {
+      fontSize: '12px',
+      color: '#ffffff',
+    });
     allyText.setOrigin(0.5);
     allyText.setDepth(101);
 
@@ -232,19 +241,17 @@ export class GameScene extends Phaser.Scene {
     enemyBase.setStrokeStyle(3, COLORS.ENEMY_SECONDARY);
     enemyBase.setDepth(100);
 
-    const enemyText = this.add.text(
-      offsetX + enemyIso.x,
-      offsetY + enemyIso.y - 16,
-      '적 기지',
-      { fontSize: '10px', color: '#ffffff' }
-    );
+    const enemyText = this.add.text(offsetX + enemyIso.x, offsetY + enemyIso.y - 16, '적 기지', {
+      fontSize: '10px',
+      color: '#ffffff',
+    });
     enemyText.setOrigin(0.5);
     enemyText.setDepth(101);
 
     // 적 기지 HP 바
     this.enemyBaseHpBar = this.add.graphics();
     this.enemyBaseHpBar.setDepth(102);
-    
+
     this.enemyBaseHpText = this.add.text(
       offsetX + enemyIso.x,
       offsetY + enemyIso.y - 45,
@@ -286,7 +293,9 @@ export class GameScene extends Phaser.Scene {
     this.enemyBaseHpBar.strokeRect(barX, barY, barWidth, barHeight);
 
     // 텍스트 업데이트
-    this.enemyBaseHpText.setText(`${Math.max(0, Math.floor(this.enemyBaseHp))} / ${this.maxEnemyBaseHp}`);
+    this.enemyBaseHpText.setText(
+      `${Math.max(0, Math.floor(this.enemyBaseHp))} / ${this.maxEnemyBaseHp}`
+    );
     this.enemyBaseHpText.setPosition(offsetX + enemyIso.x, barY - 8);
   }
 
@@ -311,7 +320,7 @@ export class GameScene extends Phaser.Scene {
     // 광산 위치 (기지 왼쪽)
     const mineGridPos = { x: 3, y: GAME_CONFIG.GRID_HEIGHT - 2 };
     const mineIso = this.grid.cartesianToIsometric(mineGridPos.x, mineGridPos.y);
-    
+
     this.mineBuilding = this.add.image(
       offsetX + mineIso.x,
       offsetY + mineIso.y - 16,
@@ -320,12 +329,10 @@ export class GameScene extends Phaser.Scene {
     this.mineBuilding.setDepth(90);
 
     // 광산 라벨
-    const mineLabel = this.add.text(
-      offsetX + mineIso.x,
-      offsetY + mineIso.y - 40,
-      '광산',
-      { fontSize: '10px', color: '#ffd700' }
-    );
+    const mineLabel = this.add.text(offsetX + mineIso.x, offsetY + mineIso.y - 40, '광산', {
+      fontSize: '10px',
+      color: '#ffd700',
+    });
     mineLabel.setOrigin(0.5);
     mineLabel.setDepth(91);
 
@@ -342,7 +349,7 @@ export class GameScene extends Phaser.Scene {
     // 발전기 위치 (기지 오른쪽)
     const genGridPos = { x: 11, y: GAME_CONFIG.GRID_HEIGHT - 2 };
     const genIso = this.grid.cartesianToIsometric(genGridPos.x, genGridPos.y);
-    
+
     this.generatorBuilding = this.add.image(
       offsetX + genIso.x,
       offsetY + genIso.y - 16,
@@ -351,22 +358,18 @@ export class GameScene extends Phaser.Scene {
     this.generatorBuilding.setDepth(90);
 
     // 발전기 라벨
-    const genLabel = this.add.text(
-      offsetX + genIso.x,
-      offsetY + genIso.y - 40,
-      '발전기',
-      { fontSize: '10px', color: '#00ffff' }
-    );
+    const genLabel = this.add.text(offsetX + genIso.x, offsetY + genIso.y - 40, '발전기', {
+      fontSize: '10px',
+      color: '#00ffff',
+    });
     genLabel.setOrigin(0.5);
     genLabel.setDepth(91);
 
     // 발전기 일꾼 수 텍스트
-    this.energyWorkerText = this.add.text(
-      offsetX + genIso.x,
-      offsetY + genIso.y + 5,
-      '일꾼: 0',
-      { fontSize: '9px', color: '#ffffff' }
-    );
+    this.energyWorkerText = this.add.text(offsetX + genIso.x, offsetY + genIso.y + 5, '일꾼: 0', {
+      fontSize: '9px',
+      color: '#ffffff',
+    });
     this.energyWorkerText.setOrigin(0.5);
     this.energyWorkerText.setDepth(91);
   }
@@ -382,9 +385,9 @@ export class GameScene extends Phaser.Scene {
     // 광산 일꾼 업데이트
     const mineGridPos = { x: 3, y: GAME_CONFIG.GRID_HEIGHT - 2 };
     const mineIso = this.grid.cartesianToIsometric(mineGridPos.x, mineGridPos.y);
-    
+
     // 기존 스프라이트 제거
-    this.mineralWorkerSprites.forEach(s => s.destroy());
+    this.mineralWorkerSprites.forEach((s) => s.destroy());
     this.mineralWorkerSprites = [];
 
     // 새 스프라이트 생성 (최대 5개 표시)
@@ -408,7 +411,7 @@ export class GameScene extends Phaser.Scene {
     const genIso = this.grid.cartesianToIsometric(genGridPos.x, genGridPos.y);
 
     // 기존 스프라이트 제거
-    this.energyWorkerSprites.forEach(s => s.destroy());
+    this.energyWorkerSprites.forEach((s) => s.destroy());
     this.energyWorkerSprites = [];
 
     // 새 스프라이트 생성
@@ -503,7 +506,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.events.emit('resourceUpdate', this.resourceSystem.getResources());
       this.events.emit('workerUpdate', this.resourceSystem.getWorkerCounts());
-      
+
       // 일꾼 시각화 업데이트
       this.updateWorkerVisuals();
     }
@@ -568,7 +571,8 @@ export class GameScene extends Phaser.Scene {
     this.isFinalWave = this.waveNumber >= BASE_CONFIG.VICTORY_WAVE;
 
     // 적 스폰 수 계산
-    this.currentWaveEnemiesToSpawn = ENEMY_CONFIG.ENEMIES_PER_WAVE + Math.floor(this.waveNumber / 2);
+    this.currentWaveEnemiesToSpawn =
+      ENEMY_CONFIG.ENEMIES_PER_WAVE + Math.floor(this.waveNumber / 2);
     this.currentWaveEnemiesSpawned = 0;
 
     this.time.addEvent({
@@ -599,12 +603,7 @@ export class GameScene extends Phaser.Scene {
     const spawnX = Phaser.Math.Between(5, 9);
     const startPos = this.grid.cartesianToIsometric(spawnX, this.enemySpawnPos.y);
 
-    const enemy = new Enemy(
-      this,
-      offsetX + startPos.x,
-      offsetY + startPos.y,
-      'unit_enemy'
-    );
+    const enemy = new Enemy(this, offsetX + startPos.x, offsetY + startPos.y, 'unit_enemy');
     enemy.setGridPosition(spawnX, this.enemySpawnPos.y);
 
     this.enemyUnits.add(enemy);
@@ -823,13 +822,18 @@ export class GameScene extends Phaser.Scene {
       // 전투 수행
       if (closestEnemy) {
         ally.performAttack();
-        
+
         // 범위 공격인 경우 주변 적에게도 데미지
         if (ally.hasAoe()) {
           const aoeRange = 40;
           for (const enemy of enemies) {
             if (!enemy.active) continue;
-            const dist = Phaser.Math.Distance.Between(closestEnemy.x, closestEnemy.y, enemy.x, enemy.y);
+            const dist = Phaser.Math.Distance.Between(
+              closestEnemy.x,
+              closestEnemy.y,
+              enemy.x,
+              enemy.y
+            );
             if (dist < aoeRange) {
               enemy.takeDamage(ally.getAttack() * 0.5); // 범위 데미지는 50%
             }
@@ -837,9 +841,11 @@ export class GameScene extends Phaser.Scene {
         }
 
         closestEnemy.takeDamage(ally.getAttack());
-        
+
         // 적의 반격 (비행 유닛은 지상 적에게 덜 맞음)
-        const counterDamage = ally.canFly() ? closestEnemy.getAttack() * 0.15 : closestEnemy.getAttack() * 0.3;
+        const counterDamage = ally.canFly()
+          ? closestEnemy.getAttack() * 0.15
+          : closestEnemy.getAttack() * 0.3;
         ally.takeDamage(counterDamage);
 
         if (closestEnemy.isDead()) {
@@ -879,7 +885,7 @@ export class GameScene extends Phaser.Scene {
     // 승리 조건 2: 웨이브 10 클리어 (마지막 웨이브의 모든 적 처치)
     if (this.isFinalWave && !this.isVictory && !this.isGameOver) {
       // 모든 적이 스폰되었고, 남은 적이 없으면 승리
-      const activeEnemies = this.enemyUnits.getChildren().filter(e => (e as Enemy).active).length;
+      const activeEnemies = this.enemyUnits.getChildren().filter((e) => (e as Enemy).active).length;
       if (this.currentWaveEnemiesSpawned >= this.currentWaveEnemiesToSpawn && activeEnemies === 0) {
         this.isVictory = true;
         this.showVictory('웨이브 10 클리어!');
@@ -918,12 +924,10 @@ export class GameScene extends Phaser.Scene {
     victoryText.setDepth(501);
 
     // 승리 이유
-    const reasonText = this.add.text(
-      GAME_CONFIG.WIDTH / 2,
-      GAME_CONFIG.HEIGHT / 2 - 20,
-      reason,
-      { fontSize: '24px', color: '#ffffff' }
-    );
+    const reasonText = this.add.text(GAME_CONFIG.WIDTH / 2, GAME_CONFIG.HEIGHT / 2 - 20, reason, {
+      fontSize: '24px',
+      color: '#ffffff',
+    });
     reasonText.setOrigin(0.5);
     reasonText.setDepth(501);
 
@@ -1046,4 +1050,3 @@ export class GameScene extends Phaser.Scene {
     this.events.off('autoProduceToggle', this.onAutoProduceToggle, this);
   }
 }
-

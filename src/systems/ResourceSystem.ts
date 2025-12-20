@@ -43,7 +43,8 @@ export class ResourceSystem {
 
     // 광물 수집
     if (this.mineralWorkers > 0) {
-      this.mineralBuffer += this.mineralWorkers * RESOURCE_CONFIG.WORKER_MINERAL_RATE * deltaSeconds;
+      this.mineralBuffer +=
+        this.mineralWorkers * RESOURCE_CONFIG.WORKER_MINERAL_RATE * deltaSeconds;
 
       if (this.mineralBuffer >= 1) {
         const toAdd = Math.floor(this.mineralBuffer);
@@ -148,4 +149,3 @@ export class ResourceSystem {
     return this.energy >= amount;
   }
 }
-

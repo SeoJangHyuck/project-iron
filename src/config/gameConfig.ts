@@ -56,11 +56,11 @@ export const BASE_CONFIG = {
   // 아군 기지
   MAX_HP: 100,
   DAMAGE_PER_ENEMY: 10,
-  
+
   // 적 기지
   ENEMY_MAX_HP: 200,
   DAMAGE_PER_ALLY: 15, // 아군 유닛 1마리당 적 기지에 주는 데미지
-  
+
   // 승리 조건
   VICTORY_WAVE: 10, // 이 웨이브 클리어 시 승리
 };
@@ -73,7 +73,7 @@ export const ENEMY_CONFIG = {
   WAVE_INTERVAL: 15000, // 웨이브 간격 (ms)
   ENEMIES_PER_WAVE: 3, // 웨이브당 적 수
   SPAWN_INTERVAL: 800, // 적 스폰 간격 (ms)
-  
+
   // 적 스탯
   BASE_HP: 60,
   BASE_ATTACK: 8,
@@ -112,14 +112,13 @@ export const COLORS = {
  */
 export const UNIT_COLORS = {
   // 무기 타입별 색상
-  MACHINEGUN: 0x4a90d9,   // 파랑 - 머신건 (빠른 연사)
-  SHOTGUN: 0x6a9fd9,      // 연파랑 - 샷건
-  CANNON: 0xff8844,       // 주황 - 캐논 (강력)
-  MISSILE: 0xff6622,      // 진주황 - 미사일 (범위)
-  LASER: 0x44ff88,        // 초록 - 레이저 (관통)
-  REPAIR: 0xffff44,       // 노랑 - 수리암 (힐러)
-  
+  MACHINEGUN: 0x4a90d9, // 파랑 - 머신건 (빠른 연사)
+  SHOTGUN: 0x6a9fd9, // 연파랑 - 샷건
+  CANNON: 0xff8844, // 주황 - 캐논 (강력)
+  MISSILE: 0xff6622, // 진주황 - 미사일 (범위)
+  LASER: 0x44ff88, // 초록 - 레이저 (관통)
+  REPAIR: 0xffff44, // 노랑 - 수리암 (힐러)
+
   // 이동 타입별 추가 효과
   FLIGHT_BRIGHTNESS: 0.3, // 비행 유닛 밝기 증가량
 };
-

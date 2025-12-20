@@ -1,11 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG, COLORS } from '../config/gameConfig';
-import {
-  LEG_PARTS,
-  BODY_PARTS,
-  ARM_PARTS,
-  MovementType,
-} from '../data/parts';
+import { LEG_PARTS, BODY_PARTS, ARM_PARTS, MovementType } from '../data/parts';
 import type { LegPart, BodyPart, ArmPart } from '../data/parts';
 import {
   buildMech,
@@ -79,9 +74,9 @@ export class UnitSetupScene extends Phaser.Scene {
     this.createHeader();
 
     // 카드 덱빌더 레이아웃
-    this.createUnitDeck();       // 상단 유닛 카드 덱
-    this.createPartsCards();     // 좌측 파츠 카드 영역
-    this.createPreviewPanel();   // 우측 프리뷰 영역
+    this.createUnitDeck(); // 상단 유닛 카드 덱
+    this.createPartsCards(); // 좌측 파츠 카드 영역
+    this.createPreviewPanel(); // 우측 프리뷰 영역
 
     this.updateUI();
   }
@@ -92,7 +87,10 @@ export class UnitSetupScene extends Phaser.Scene {
       // 1. 경량 정찰기 - 빠른 이동, 저렴
       { config: { legsId: 'scout', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '정찰기' },
       // 2. 표준 레이저 - 밸런스 + 관통
-      { config: { legsId: 'walker', bodyId: 'standardFrame', armsId: 'laser' }, name: '레이저워커' },
+      {
+        config: { legsId: 'walker', bodyId: 'standardFrame', armsId: 'laser' },
+        name: '레이저워커',
+      },
       // 3. 중장 캐논 - 탱커 + 고화력
       { config: { legsId: 'fortress', bodyId: 'heavyArmor', armsId: 'cannon' }, name: '중전차' },
       // 4. 경량 비행기 - 빠른 비행
@@ -143,13 +141,28 @@ export class UnitSetupScene extends Phaser.Scene {
     title.setOrigin(0.5);
     title.setDepth(11);
 
-    this.createButton(80, 30, '◀ 뒤로', () => {
-      this.scene.start('MainMenuScene');
-    }, 100, 35);
+    this.createButton(
+      80,
+      30,
+      '◀ 뒤로',
+      () => {
+        this.scene.start('MainMenuScene');
+      },
+      100,
+      35
+    );
 
-    this.createButton(GAME_CONFIG.WIDTH - 80, 30, '출격 ▶', () => {
-      this.startGame();
-    }, 100, 35, 0x2266aa);
+    this.createButton(
+      GAME_CONFIG.WIDTH - 80,
+      30,
+      '출격 ▶',
+      () => {
+        this.startGame();
+      },
+      100,
+      35,
+      0x2266aa
+    );
   }
 
   /**
@@ -201,12 +214,23 @@ export class UnitSetupScene extends Phaser.Scene {
     bg.setInteractive({ useHandCursor: true });
 
     // 슬롯 번호 뱃지
-    const badge = this.add.rectangle(-UNIT_CARD_WIDTH/2 + 15, -UNIT_CARD_HEIGHT/2 + 12, 22, 18, 0x4466aa);
-    const numText = this.add.text(-UNIT_CARD_WIDTH/2 + 15, -UNIT_CARD_HEIGHT/2 + 12, `${index + 1}`, {
-      fontSize: '11px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    });
+    const badge = this.add.rectangle(
+      -UNIT_CARD_WIDTH / 2 + 15,
+      -UNIT_CARD_HEIGHT / 2 + 12,
+      22,
+      18,
+      0x4466aa
+    );
+    const numText = this.add.text(
+      -UNIT_CARD_WIDTH / 2 + 15,
+      -UNIT_CARD_HEIGHT / 2 + 12,
+      `${index + 1}`,
+      {
+        fontSize: '11px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+      }
+    );
     numText.setOrigin(0.5);
 
     // 유닛 이름
@@ -267,19 +291,45 @@ export class UnitSetupScene extends Phaser.Scene {
     cardsBg.setStrokeStyle(2, 0x2a2a4a);
 
     // 제약 조건 표시
-    this.constraintInfoText = this.add.text(CARDS_AREA_X + CARDS_AREA_WIDTH - 15, CONTENT_Y + 18, '', {
-      fontSize: '11px',
-      color: '#66aaff',
-      align: 'right',
-    });
+    this.constraintInfoText = this.add.text(
+      CARDS_AREA_X + CARDS_AREA_WIDTH - 15,
+      CONTENT_Y + 18,
+      '',
+      {
+        fontSize: '11px',
+        color: '#66aaff',
+        align: 'right',
+      }
+    );
     this.constraintInfoText.setOrigin(1, 0.5);
 
     // 3개 파츠 카테고리
     const rowHeight = (areaHeight - 40) / 3;
 
-    this.createPartCardRow('🦿 다리', CONTENT_Y + 10, rowHeight, Object.values(LEG_PARTS), PartTabType.LEGS, this.legsCards);
-    this.createPartCardRow('🛡 몸통', CONTENT_Y + 10 + rowHeight, rowHeight, Object.values(BODY_PARTS), PartTabType.BODY, this.bodyCards);
-    this.createPartCardRow('🔫 팔/무기', CONTENT_Y + 10 + rowHeight * 2, rowHeight, Object.values(ARM_PARTS), PartTabType.ARMS, this.armsCards);
+    this.createPartCardRow(
+      '🦿 다리',
+      CONTENT_Y + 10,
+      rowHeight,
+      Object.values(LEG_PARTS),
+      PartTabType.LEGS,
+      this.legsCards
+    );
+    this.createPartCardRow(
+      '🛡 몸통',
+      CONTENT_Y + 10 + rowHeight,
+      rowHeight,
+      Object.values(BODY_PARTS),
+      PartTabType.BODY,
+      this.bodyCards
+    );
+    this.createPartCardRow(
+      '🔫 팔/무기',
+      CONTENT_Y + 10 + rowHeight * 2,
+      rowHeight,
+      Object.values(ARM_PARTS),
+      PartTabType.ARMS,
+      this.armsCards
+    );
   }
 
   /**
@@ -448,10 +498,12 @@ export class UnitSetupScene extends Phaser.Scene {
       this.editUnitName();
     });
 
-    this.add.text(PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2, CONTENT_Y + 80, '(클릭하여 이름 수정)', {
-      fontSize: '9px',
-      color: '#556677',
-    }).setOrigin(0.5);
+    this.add
+      .text(PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2, CONTENT_Y + 80, '(클릭하여 이름 수정)', {
+        fontSize: '9px',
+        color: '#556677',
+      })
+      .setOrigin(0.5);
 
     // 미리보기 그래픽
     this.previewGraphics = this.add.graphics();
@@ -464,10 +516,15 @@ export class UnitSetupScene extends Phaser.Scene {
     });
 
     // 에러 메시지
-    this.errorText = this.add.text(PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2, CONTENT_Y + panelHeight - 30, '', {
-      fontSize: '11px',
-      color: '#ff6666',
-    });
+    this.errorText = this.add.text(
+      PREVIEW_AREA_X + PREVIEW_AREA_WIDTH / 2,
+      CONTENT_Y + panelHeight - 30,
+      '',
+      {
+        fontSize: '11px',
+        color: '#ff6666',
+      }
+    );
     this.errorText.setOrigin(0.5);
   }
 
@@ -689,9 +746,12 @@ export class UnitSetupScene extends Phaser.Scene {
     this.previewGraphics.fillStyle(isFlying ? 0x4a90d9 : 0x6a6a8a, 1);
     if (isFlying) {
       this.previewGraphics.fillTriangle(
-        x - 30 * scale, y + 35 * scale,
-        x + 30 * scale, y + 35 * scale,
-        x, y + 55 * scale
+        x - 30 * scale,
+        y + 35 * scale,
+        x + 30 * scale,
+        y + 35 * scale,
+        x,
+        y + 55 * scale
       );
       this.previewGraphics.fillStyle(0x4a90d9, 0.4);
       this.previewGraphics.fillEllipse(x, y + 60 * scale, 70 * scale, 18 * scale);
@@ -708,8 +768,11 @@ export class UnitSetupScene extends Phaser.Scene {
     this.previewGraphics.strokeRect(x - 30 * scale, y - 20 * scale, 60 * scale, 50 * scale);
 
     // 팔
-    const armColor = slot.build.arms.isPiercing ? 0x00ff88 :
-                     slot.build.arms.isAoe ? 0xff8800 : 0x888899;
+    const armColor = slot.build.arms.isPiercing
+      ? 0x00ff88
+      : slot.build.arms.isAoe
+        ? 0xff8800
+        : 0x888899;
     this.previewGraphics.fillStyle(armColor, 1);
     this.previewGraphics.fillRect(x - 48 * scale, y - 10 * scale, 15 * scale, 30 * scale);
     this.previewGraphics.fillRect(x + 33 * scale, y - 10 * scale, 15 * scale, 30 * scale);

@@ -103,10 +103,15 @@ export class UIScene extends Phaser.Scene {
     const mineralIcon = this.add.rectangle(20, barHeight / 2, 20, 20, 0xffd700);
     mineralIcon.setDepth(1001);
 
-    this.mineralText = this.add.text(45, barHeight / 2, `광물: ${RESOURCE_CONFIG.INITIAL_MINERALS}`, {
-      fontSize: '16px',
-      color: '#ffffff',
-    });
+    this.mineralText = this.add.text(
+      45,
+      barHeight / 2,
+      `광물: ${RESOURCE_CONFIG.INITIAL_MINERALS}`,
+      {
+        fontSize: '16px',
+        color: '#ffffff',
+      }
+    );
     this.mineralText.setOrigin(0, 0.5);
     this.mineralText.setDepth(1001);
 
@@ -114,10 +119,15 @@ export class UIScene extends Phaser.Scene {
     const energyIcon = this.add.rectangle(180, barHeight / 2, 20, 20, 0x00ffff);
     energyIcon.setDepth(1001);
 
-    this.energyText = this.add.text(205, barHeight / 2, `에너지: ${RESOURCE_CONFIG.INITIAL_ENERGY}`, {
-      fontSize: '16px',
-      color: '#ffffff',
-    });
+    this.energyText = this.add.text(
+      205,
+      barHeight / 2,
+      `에너지: ${RESOURCE_CONFIG.INITIAL_ENERGY}`,
+      {
+        fontSize: '16px',
+        color: '#ffffff',
+      }
+    );
     this.energyText.setOrigin(0, 0.5);
     this.energyText.setDepth(1001);
 
@@ -221,15 +231,27 @@ export class UIScene extends Phaser.Scene {
     bg.setDepth(1000);
 
     // 일꾼 생산 버튼들
-    this.createButton(70, panelY, '광산 일꾼\n(100 광물)', () => {
-      const gameScene = this.scene.get('GameScene');
-      gameScene.events.emit('produceWorker', 'mineral');
-    }, 90);
+    this.createButton(
+      70,
+      panelY,
+      '광산 일꾼\n(100 광물)',
+      () => {
+        const gameScene = this.scene.get('GameScene');
+        gameScene.events.emit('produceWorker', 'mineral');
+      },
+      90
+    );
 
-    this.createButton(170, panelY, '발전기 일꾼\n(100 광물)', () => {
-      const gameScene = this.scene.get('GameScene');
-      gameScene.events.emit('produceWorker', 'energy');
-    }, 90);
+    this.createButton(
+      170,
+      panelY,
+      '발전기 일꾼\n(100 광물)',
+      () => {
+        const gameScene = this.scene.get('GameScene');
+        gameScene.events.emit('produceWorker', 'energy');
+      },
+      90
+    );
 
     // 구분선
     const divider = this.add.rectangle(230, panelY, 2, 60, 0x444444);
@@ -272,7 +294,8 @@ export class UIScene extends Phaser.Scene {
       bgRect.setName('bg');
 
       // 유닛 이름 (짧게)
-      const shortName = unitData.name.length > 6 ? unitData.name.substring(0, 6) + '..' : unitData.name;
+      const shortName =
+        unitData.name.length > 6 ? unitData.name.substring(0, 6) + '..' : unitData.name;
       const nameText = this.add.text(0, -15, shortName, {
         fontSize: '11px',
         color: '#ffffff',
@@ -332,10 +355,16 @@ export class UIScene extends Phaser.Scene {
 
     // 빈 슬롯이 없으면 기본 버튼 생성
     if (maxSlots === 0) {
-      this.createButton(350, panelY, '전투 유닛\n(150 광물)', () => {
-        const gameScene = this.scene.get('GameScene');
-        gameScene.events.emit('produceUnit');
-      }, 100);
+      this.createButton(
+        350,
+        panelY,
+        '전투 유닛\n(150 광물)',
+        () => {
+          const gameScene = this.scene.get('GameScene');
+          gameScene.events.emit('produceUnit');
+        },
+        100
+      );
     }
   }
 
@@ -421,7 +450,13 @@ export class UIScene extends Phaser.Scene {
   /**
    * 버튼 생성
    */
-  private createButton(x: number, y: number, text: string, callback: () => void, width = 110): void {
+  private createButton(
+    x: number,
+    y: number,
+    text: string,
+    callback: () => void,
+    width = 110
+  ): void {
     const buttonWidth = width;
     const buttonHeight = 55;
 
@@ -463,7 +498,9 @@ export class UIScene extends Phaser.Scene {
    */
   private onWorkerUpdate(counts: WorkerCounts): void {
     this.workerCounts = { ...counts };
-    this.workerText.setText(`일꾼: 광산 ${this.workerCounts.mineralWorkers} | 발전기 ${this.workerCounts.energyWorkers}`);
+    this.workerText.setText(
+      `일꾼: 광산 ${this.workerCounts.mineralWorkers} | 발전기 ${this.workerCounts.energyWorkers}`
+    );
   }
 
   /**
@@ -589,4 +626,3 @@ export class UIScene extends Phaser.Scene {
     });
   }
 }
-

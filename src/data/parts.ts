@@ -303,4 +303,3 @@ export const ARM_PARTS: Record<string, ArmPart> = {
 export const getLegs = (id: string): LegPart | undefined => LEG_PARTS[id];
 export const getBody = (id: string): BodyPart | undefined => BODY_PARTS[id];
 export const getArms = (id: string): ArmPart | undefined => ARM_PARTS[id];
-

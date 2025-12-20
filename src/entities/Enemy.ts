@@ -155,4 +155,3 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     super.destroy(fromScene);
   }
 }
-

@@ -346,4 +346,3 @@ export class MechUnit extends Phaser.GameObjects.Sprite {
     super.destroy(fromScene);
   }
 }
-

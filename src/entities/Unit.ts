@@ -193,4 +193,3 @@ export class Unit extends Phaser.GameObjects.Sprite {
     super.destroy(fromScene);
   }
 }
-

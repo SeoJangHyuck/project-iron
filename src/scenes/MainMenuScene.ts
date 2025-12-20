@@ -49,15 +49,26 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // 설정 버튼 (비활성)
-    this.createButton(centerX, centerY + 160, '설정', () => {
-      console.log('설정 - 아직 구현되지 않음');
-    }, true);
+    this.createButton(
+      centerX,
+      centerY + 160,
+      '설정',
+      () => {
+        console.log('설정 - 아직 구현되지 않음');
+      },
+      true
+    );
 
     // 버전 정보
-    const version = this.add.text(GAME_CONFIG.WIDTH - 10, GAME_CONFIG.HEIGHT - 10, 'v0.1.0 - Phase 1 Prototype', {
-      fontSize: '12px',
-      color: '#666666',
-    });
+    const version = this.add.text(
+      GAME_CONFIG.WIDTH - 10,
+      GAME_CONFIG.HEIGHT - 10,
+      'v0.1.0 - Phase 1 Prototype',
+      {
+        fontSize: '12px',
+        color: '#666666',
+      }
+    );
     version.setOrigin(1, 1);
   }
 
@@ -66,7 +77,7 @@ export class MainMenuScene extends Phaser.Scene {
    */
   private createBackground(): void {
     const graphics = this.add.graphics();
-    
+
     // 그라데이션 배경
     for (let y = 0; y < GAME_CONFIG.HEIGHT; y++) {
       const alpha = 1 - (y / GAME_CONFIG.HEIGHT) * 0.3;
@@ -90,7 +101,10 @@ export class MainMenuScene extends Phaser.Scene {
   private setupDefaultUnitBuilds(): void {
     const presets: { config: MechConfig; name: string }[] = [
       { config: { legsId: 'scout', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '정찰기' },
-      { config: { legsId: 'walker', bodyId: 'standardFrame', armsId: 'laser' }, name: '레이저워커' },
+      {
+        config: { legsId: 'walker', bodyId: 'standardFrame', armsId: 'laser' },
+        name: '레이저워커',
+      },
       { config: { legsId: 'fortress', bodyId: 'heavyArmor', armsId: 'cannon' }, name: '중전차' },
       { config: { legsId: 'swift', bodyId: 'lightFrame', armsId: 'machinegun' }, name: '스피더' },
       { config: { legsId: 'hawk', bodyId: 'standardFrame', armsId: 'laser' }, name: '호크아이' },
@@ -154,4 +168,3 @@ export class MainMenuScene extends Phaser.Scene {
     return container;
   }
 }
-
