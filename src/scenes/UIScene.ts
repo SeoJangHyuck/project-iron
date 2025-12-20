@@ -46,6 +46,10 @@ export class UIScene extends Phaser.Scene {
   private unitButtons: Phaser.GameObjects.Container[] = [];
   private _selectedSlotIndex = 0;
 
+  // 생산 프로그레스 바
+  private productionBars: Map<number, Phaser.GameObjects.Graphics> = new Map();
+  private productionTexts: Map<number, Phaser.GameObjects.Text> = new Map();
+
   constructor() {
     super({ key: 'UIScene' });
   }
@@ -71,6 +75,11 @@ export class UIScene extends Phaser.Scene {
     gameScene.events.on('waveStart', this.onWaveStart, this);
     gameScene.events.on('baseHpUpdate', this.onBaseHpUpdate, this);
     gameScene.events.on('killUpdate', this.onKillUpdate, this);
+
+    // 생산 관련 이벤트
+    gameScene.events.on('productionStart', this.onProductionStart, this);
+    gameScene.events.on('productionProgress', this.onProductionProgress, this);
+    gameScene.events.on('productionComplete', this.onProductionComplete, this);
   }
 
   /**
@@ -238,8 +247,12 @@ export class UIScene extends Phaser.Scene {
    */
   private createUnitSlotButtons(panelY: number): void {
     this.unitButtons = [];
+    this.productionBars.clear();
+    this.productionTexts.clear();
+
     const startX = 280;
     const buttonWidth = 85;
+    const buttonHeight = 55;
     const gap = 5;
 
     // 최대 6개 슬롯 표시
@@ -253,28 +266,45 @@ export class UIScene extends Phaser.Scene {
       container.setDepth(1001);
 
       // 배경
-      const bgRect = this.add.rectangle(0, 0, buttonWidth, 55, 0x2d3436);
+      const bgRect = this.add.rectangle(0, 0, buttonWidth, buttonHeight, 0x2d3436);
       bgRect.setStrokeStyle(2, i === 0 ? 0x44ff44 : COLORS.UI_ACCENT);
       bgRect.setInteractive({ useHandCursor: true });
       bgRect.setName('bg');
 
       // 유닛 이름 (짧게)
       const shortName = unitData.name.length > 6 ? unitData.name.substring(0, 6) + '..' : unitData.name;
-      const nameText = this.add.text(0, -12, shortName, {
+      const nameText = this.add.text(0, -15, shortName, {
         fontSize: '11px',
         color: '#ffffff',
       });
       nameText.setOrigin(0.5);
+      nameText.setName('nameText');
 
       // 비용
-      const costText = this.add.text(0, 8, `${unitData.build.stats.cost}광물`, {
+      const costText = this.add.text(0, 3, `${unitData.build.stats.cost}광물`, {
         fontSize: '10px',
         color: '#ffd700',
       });
       costText.setOrigin(0.5);
       costText.setName('costText');
 
-      container.add([bgRect, nameText, costText]);
+      // 생산 프로그레스 바 (버튼 하단)
+      const progressBar = this.add.graphics();
+      progressBar.setDepth(1002);
+      progressBar.setName('progressBar');
+      this.productionBars.set(i, progressBar);
+
+      // 생산 시간 텍스트
+      const timeText = this.add.text(0, 20, '', {
+        fontSize: '9px',
+        color: '#88ff88',
+      });
+      timeText.setOrigin(0.5);
+      timeText.setName('timeText');
+      timeText.setVisible(false);
+      this.productionTexts.set(i, timeText);
+
+      container.add([bgRect, nameText, costText, progressBar, timeText]);
       this.unitButtons.push(container);
 
       // 클릭 이벤트
@@ -286,11 +316,17 @@ export class UIScene extends Phaser.Scene {
       });
 
       bgRect.on('pointerover', () => {
-        bgRect.setFillStyle(0x4a5568);
+        const currentBg = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+        if (currentBg) {
+          currentBg.setFillStyle(0x4a5568);
+        }
       });
 
       bgRect.on('pointerout', () => {
-        bgRect.setFillStyle(0x2d3436);
+        const currentBg = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+        if (currentBg) {
+          currentBg.setFillStyle(0x2d3436);
+        }
       });
     }
 
@@ -450,6 +486,107 @@ export class UIScene extends Phaser.Scene {
    */
   private onKillUpdate(kills: number): void {
     this.killText.setText(`처치: ${kills}`);
+  }
+
+  /**
+   * 생산 시작 처리
+   */
+  private onProductionStart(slotIndex: number, _duration: number): void {
+    const container = this.unitButtons[slotIndex];
+    if (!container) return;
+
+    // 버튼 어둡게 처리
+    const bgRect = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+    if (bgRect) {
+      bgRect.setFillStyle(0x1a1a1a);
+      bgRect.setAlpha(0.7);
+    }
+
+    // 시간 텍스트 표시
+    const timeText = this.productionTexts.get(slotIndex);
+    if (timeText) {
+      timeText.setVisible(true);
+    }
+  }
+
+  /**
+   * 생산 진행률 업데이트
+   */
+  private onProductionProgress(slotIndex: number, progress: number, remainingMs: number): void {
+    const container = this.unitButtons[slotIndex];
+    if (!container) return;
+
+    // 프로그레스 바 업데이트
+    const progressBar = this.productionBars.get(slotIndex);
+    if (progressBar) {
+      progressBar.clear();
+
+      const barWidth = 75;
+      const barHeight = 6;
+      const barX = -barWidth / 2;
+      const barY = 18;
+
+      // 배경
+      progressBar.fillStyle(0x333333);
+      progressBar.fillRect(barX, barY, barWidth, barHeight);
+
+      // 진행률
+      progressBar.fillStyle(0x44ff44);
+      progressBar.fillRect(barX, barY, barWidth * progress, barHeight);
+
+      // 테두리
+      progressBar.lineStyle(1, 0x666666);
+      progressBar.strokeRect(barX, barY, barWidth, barHeight);
+    }
+
+    // 남은 시간 텍스트 업데이트
+    const timeText = this.productionTexts.get(slotIndex);
+    if (timeText) {
+      const seconds = Math.ceil(remainingMs / 1000);
+      timeText.setText(`${seconds}초`);
+    }
+  }
+
+  /**
+   * 생산 완료 처리
+   */
+  private onProductionComplete(slotIndex: number): void {
+    const container = this.unitButtons[slotIndex];
+    if (!container) return;
+
+    // 버튼 복원
+    const bgRect = container.getByName('bg') as Phaser.GameObjects.Rectangle;
+    if (bgRect) {
+      bgRect.setFillStyle(0x2d3436);
+      bgRect.setAlpha(1);
+    }
+
+    // 프로그레스 바 초기화
+    const progressBar = this.productionBars.get(slotIndex);
+    if (progressBar) {
+      progressBar.clear();
+    }
+
+    // 시간 텍스트 숨기기
+    const timeText = this.productionTexts.get(slotIndex);
+    if (timeText) {
+      timeText.setVisible(false);
+      timeText.setText('');
+    }
+
+    // 완료 피드백 (깜빡임 효과)
+    this.tweens.add({
+      targets: bgRect,
+      alpha: { from: 1, to: 0.5 },
+      duration: 100,
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => {
+        if (bgRect) {
+          bgRect.setAlpha(1);
+        }
+      },
+    });
   }
 }
 

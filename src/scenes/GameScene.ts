@@ -1,11 +1,31 @@
 import Phaser from 'phaser';
-import { GAME_CONFIG, COLORS, RESOURCE_CONFIG, ENEMY_CONFIG, BASE_CONFIG } from '../config/gameConfig';
+import { GAME_CONFIG, COLORS, RESOURCE_CONFIG, ENEMY_CONFIG, BASE_CONFIG, UNIT_CONFIG } from '../config/gameConfig';
 import { IsometricGrid } from '../systems/IsometricGrid';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { Enemy } from '../entities/Enemy';
 import { MechUnit } from '../entities/MechUnit';
 import { buildMech, DEFAULT_MECH_CONFIG } from '../systems/MechBuilder';
 import type { MechBuild } from '../systems/MechBuilder';
+
+/**
+ * 생산 대기열 아이템 타입
+ */
+type ProductionItem = {
+  slotIndex: number;
+  build: MechBuild;
+  name: string;
+  startTime: number;
+  duration: number;
+};
+
+/**
+ * 슬롯별 생산 상태
+ */
+type ProductionState = {
+  isProducing: boolean;
+  progress: number;
+  remainingMs: number;
+};
 
 /**
  * 게임 씬 - 메인 게임플레이
@@ -64,6 +84,10 @@ export class GameScene extends Phaser.Scene {
   private unitBuilds: { build: MechBuild; name: string }[] = [];
   private currentSlotIndex = 0;
 
+  // 생산 대기열 시스템
+  private productionQueue: ProductionItem[] = [];
+  private productionStates: Map<number, ProductionState> = new Map();
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -78,6 +102,10 @@ export class GameScene extends Phaser.Scene {
     this.enemyBaseHp = BASE_CONFIG.ENEMY_MAX_HP;
     this.currentWaveEnemiesSpawned = 0;
     this.currentWaveEnemiesToSpawn = 0;
+
+    // 생산 대기열 초기화
+    this.productionQueue = [];
+    this.productionStates.clear();
 
     // 시스템 초기화
     this.initializeSystems();
@@ -433,10 +461,32 @@ export class GameScene extends Phaser.Scene {
     const unitData = this.unitBuilds[index];
     if (!unitData) return;
 
+    // 이미 해당 슬롯이 생산 중이면 무시
+    const currentState = this.productionStates.get(index);
+    if (currentState?.isProducing) return;
+
     const cost = unitData.build.stats.cost;
 
     if (this.resourceSystem.spendMinerals(cost)) {
-      this.spawnAllyUnit(index);
+      // 생산 대기열에 추가
+      const productionItem: ProductionItem = {
+        slotIndex: index,
+        build: unitData.build,
+        name: unitData.name,
+        startTime: this.time.now,
+        duration: UNIT_CONFIG.BASE_PRODUCTION_TIME,
+      };
+      this.productionQueue.push(productionItem);
+
+      // 생산 상태 초기화
+      this.productionStates.set(index, {
+        isProducing: true,
+        progress: 0,
+        remainingMs: UNIT_CONFIG.BASE_PRODUCTION_TIME,
+      });
+
+      // 생산 시작 이벤트
+      this.events.emit('productionStart', index, UNIT_CONFIG.BASE_PRODUCTION_TIME);
       this.events.emit('resourceUpdate', this.resourceSystem.getResources());
     }
   }
@@ -567,6 +617,9 @@ export class GameScene extends Phaser.Scene {
     this.resourceSystem.update(delta);
     this.events.emit('resourceUpdate', this.resourceSystem.getResources());
 
+    // 생산 대기열 업데이트
+    this.updateProductionQueue();
+
     // 자동생산 처리
     this.updateAutoProduce(delta);
 
@@ -584,6 +637,47 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * 생산 대기열 업데이트
+   */
+  private updateProductionQueue(): void {
+    const now = this.time.now;
+    const completedItems: ProductionItem[] = [];
+
+    for (const item of this.productionQueue) {
+      const elapsed = now - item.startTime;
+      const progress = Math.min(1, elapsed / item.duration);
+      const remainingMs = Math.max(0, item.duration - elapsed);
+
+      // 생산 상태 업데이트
+      this.productionStates.set(item.slotIndex, {
+        isProducing: progress < 1,
+        progress,
+        remainingMs,
+      });
+
+      // 생산 진행률 이벤트
+      this.events.emit('productionProgress', item.slotIndex, progress, remainingMs);
+
+      // 생산 완료
+      if (progress >= 1) {
+        completedItems.push(item);
+      }
+    }
+
+    // 완료된 아이템 처리
+    for (const item of completedItems) {
+      this.spawnAllyUnit(item.slotIndex);
+      this.events.emit('productionComplete', item.slotIndex);
+
+      // 대기열에서 제거
+      const idx = this.productionQueue.indexOf(item);
+      if (idx !== -1) {
+        this.productionQueue.splice(idx, 1);
+      }
+    }
+  }
+
+  /**
    * 자동생산 업데이트
    */
   private updateAutoProduce(delta: number): void {
@@ -594,15 +688,17 @@ export class GameScene extends Phaser.Scene {
     if (this.autoProduceCooldown <= 0) {
       this.autoProduceCooldown = this.AUTO_PRODUCE_INTERVAL;
 
-      // 현재 슬롯의 유닛 생산
+      // 현재 슬롯의 유닛 생산 (생산 중이 아닌 경우만)
+      const currentState = this.productionStates.get(this.currentSlotIndex);
+      if (currentState?.isProducing) return;
+
       const unitData = this.unitBuilds[this.currentSlotIndex];
       if (!unitData) return;
 
       const unitCost = unitData.build.stats.cost;
       if (this.resourceSystem.canAffordMinerals(unitCost)) {
-        this.resourceSystem.spendMinerals(unitCost);
-        this.spawnAllyUnit(this.currentSlotIndex);
-        this.events.emit('resourceUpdate', this.resourceSystem.getResources());
+        // onProduceUnit을 통해 생산 대기열에 추가
+        this.onProduceUnit(this.currentSlotIndex);
       }
     }
   }

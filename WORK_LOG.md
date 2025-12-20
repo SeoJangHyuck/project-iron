@@ -3,8 +3,8 @@
 ## 개요
 
 **프로젝트명**: Project Iron  
-**최종 업데이트**: 2025년 12월 16일  
-**현재 버전**: v0.3.0 (3파츠 조합 + 편성 UI 완료)
+**최종 업데이트**: 2025년 12월 19일  
+**현재 버전**: v0.3.1 (인게임 UX 개선)
 
 ---
 
@@ -100,7 +100,40 @@ src/
 
 ---
 
-## 최근 수정 내역 (2025-12-16) - 저장 시스템 기획
+## 최근 수정 내역 (2025-12-19) - 인게임 UX 개선
+
+### 유닛별 색상 구분
+1. **무기 타입별 색상 시스템** (`src/config/gameConfig.ts`)
+   - `UNIT_COLORS` 상수 추가
+   - 머신건: 파랑 (0x4a90d9)
+   - 캐논: 주황 (0xff8844)
+   - 레이저: 초록 (0x44ff88)
+   - 미사일: 진주황 (0xff6622)
+   - 샷건: 연파랑 (0x6a9fd9)
+   - 수리암: 노랑 (0xffff44)
+
+2. **유닛 색상 자동 적용** (`src/entities/MechUnit.ts`)
+   - `applyUnitColor()` 메서드 추가
+   - 비행 유닛 밝기 30% 증가 효과
+   - `brightenColor()` 색상 밝기 조정 유틸
+
+### 유닛 생산 시간 표기
+3. **생산 대기열 시스템** (`src/scenes/GameScene.ts`)
+   - `ProductionItem`, `ProductionState` 타입 정의
+   - `productionQueue` 생산 대기열 관리
+   - `updateProductionQueue()` 매 프레임 업데이트
+   - 생산 시간: 3초 (UNIT_CONFIG.BASE_PRODUCTION_TIME)
+   - 이벤트: productionStart, productionProgress, productionComplete
+
+4. **생산 프로그레스 바 UI** (`src/scenes/UIScene.ts`)
+   - 버튼 하단 프로그레스 바 표시
+   - 생산 중 버튼 어둡게 처리 (alpha 0.7)
+   - 남은 시간 카운트다운 ("3초", "2초"...)
+   - 생산 완료 시 깜빡임 피드백 효과
+
+---
+
+## 수정 내역 (2025-12-16) - 저장 시스템 기획
 
 ### 저장 시스템 TODO 추가
 1. **저장 방식 결정**: localStorage + JSON 파일 백업 하이브리드 방식
@@ -316,11 +349,12 @@ BASE_CONFIG.VICTORY_WAVE = 10;
 | 2025-12-14 | Phase 1 프로토타입: 핵심 시스템 구현 |
 | 2025-12-15 | Quick Wins 완료: 화면 확대, 전투 멈춤, 승리 조건, 일꾼 시각화, 자동생산 |
 | 2025-12-16 | docs: 저장 시스템 TODO 추가 (자동저장 + JSON 백업) |
+| 2025-12-19 | feat: 인게임 UX 개선 (유닛 색상 구분 + 생산 프로그레스 바) |
 
 ---
 
-*문서 버전: 1.3*  
+*문서 버전: 1.4*  
 *Phase 1 진행률: 100%*  
 *Quick Wins 진행률: 100%*  
-*Phase 2 진행률: ~60% (3파츠 조합 + 편성 UI 완료)*  
-*전체 진행률: ~30%*
+*Phase 2 진행률: ~65% (3파츠 조합 + 편성 UI + 인게임 UX 개선 완료)*  
+*전체 진행률: ~32%*

@@ -107,3 +107,19 @@ export const COLORS = {
   UI_ACCENT: 0xe94560,
 };
 
+/**
+ * 유닛 무기 타입별 색상
+ */
+export const UNIT_COLORS = {
+  // 무기 타입별 색상
+  MACHINEGUN: 0x4a90d9,   // 파랑 - 머신건 (빠른 연사)
+  SHOTGUN: 0x6a9fd9,      // 연파랑 - 샷건
+  CANNON: 0xff8844,       // 주황 - 캐논 (강력)
+  MISSILE: 0xff6622,      // 진주황 - 미사일 (범위)
+  LASER: 0x44ff88,        // 초록 - 레이저 (관통)
+  REPAIR: 0xffff44,       // 노랑 - 수리암 (힐러)
+  
+  // 이동 타입별 추가 효과
+  FLIGHT_BRIGHTNESS: 0.3, // 비행 유닛 밝기 증가량
+};
+

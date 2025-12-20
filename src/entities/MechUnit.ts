@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { IsometricGrid } from '../systems/IsometricGrid';
 import type { MechBuild } from '../systems/MechBuilder';
 import { MovementType } from '../data/parts';
+import { UNIT_COLORS } from '../config/gameConfig';
 
 /**
  * 파츠 기반 메카 유닛 클래스
@@ -82,10 +83,56 @@ export class MechUnit extends Phaser.GameObjects.Sprite {
     // 깊이 설정
     this.setDepth(50);
 
-    // 비행 유닛 시각적 표시 (약간 위로 띄움)
-    if (this.isFlying) {
-      this.setTint(0xaaddff); // 푸른 틴트로 비행 표시
+    // 무기 타입별 색상 적용
+    this.applyUnitColor();
+  }
+
+  /**
+   * 무기 타입에 따른 유닛 색상 적용
+   */
+  private applyUnitColor(): void {
+    const armId = this.build.arms.id;
+    let baseColor: number;
+
+    switch (armId) {
+      case 'machinegun':
+        baseColor = UNIT_COLORS.MACHINEGUN;
+        break;
+      case 'shotgun':
+        baseColor = UNIT_COLORS.SHOTGUN;
+        break;
+      case 'cannon':
+        baseColor = UNIT_COLORS.CANNON;
+        break;
+      case 'missile':
+        baseColor = UNIT_COLORS.MISSILE;
+        break;
+      case 'laser':
+        baseColor = UNIT_COLORS.LASER;
+        break;
+      case 'repairArm':
+        baseColor = UNIT_COLORS.REPAIR;
+        break;
+      default:
+        baseColor = 0xffffff; // 기본 색상
     }
+
+    // 비행 유닛은 색상을 더 밝게 조정
+    if (this.isFlying) {
+      baseColor = this.brightenColor(baseColor, UNIT_COLORS.FLIGHT_BRIGHTNESS);
+    }
+
+    this.setTint(baseColor);
+  }
+
+  /**
+   * 색상 밝기 조정
+   */
+  private brightenColor(color: number, amount: number): number {
+    const r = Math.min(255, ((color >> 16) & 0xff) + Math.floor(255 * amount));
+    const g = Math.min(255, ((color >> 8) & 0xff) + Math.floor(255 * amount));
+    const b = Math.min(255, (color & 0xff) + Math.floor(255 * amount));
+    return (r << 16) | (g << 8) | b;
   }
 
   /**
