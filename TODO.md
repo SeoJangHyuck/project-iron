@@ -197,10 +197,10 @@
 ## 개발 환경 & 코드 품질
 
 ### 코드 관리 도구
-- [ ] ESLint 설정 (TypeScript 린팅)
-- [ ] Prettier 설정 (코드 포맷팅)
+- [x] ESLint 설정 (TypeScript 린팅) (2025-12-20)
+- [x] Prettier 설정 (코드 포맷팅) (2025-12-20)
 - [ ] Husky + lint-staged (커밋 전 자동 검사)
-- [ ] EditorConfig 설정
+- [x] EditorConfig 설정 (2025-12-20)
 
 ### 다국어 지원 (i18n)
 - [ ] 한국어/영어 언어 스위칭 기능
